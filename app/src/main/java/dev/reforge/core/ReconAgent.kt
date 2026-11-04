@@ -30,6 +30,8 @@ class ReconAgent(
     // Called (and blocks) when a command trips the denylist. Returns true to run
     // it anyway, false to skip. Default refuses — safe for non-interactive use.
     private val confirm: (String) -> Boolean = { false },
+    // OpenAI-compatible endpoint base; "/chat/completions" is appended.
+    private val baseUrl: String = "https://api.deepseek.com",
 ) {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -216,7 +218,7 @@ class ReconAgent(
             .toString()
 
         val req = Request.Builder()
-            .url("https://api.deepseek.com/chat/completions")
+            .url("${baseUrl.trim().trimEnd('/')}/chat/completions")
             .addHeader("Authorization", "Bearer $apiKey")
             .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "text/event-stream")

@@ -30,6 +30,7 @@ fun SettingsScreen() {
     val settings = remember { Settings(ctx) }
     var key by remember { mutableStateOf(settings.deepSeekKey) }
     var model by remember { mutableStateOf(settings.model) }
+    var baseUrl by remember { mutableStateOf(settings.baseUrl) }
     var saved by remember { mutableStateOf(false) }
 
     Column(
@@ -43,9 +44,10 @@ fun SettingsScreen() {
             colors = CardDefaults.cardColors(containerColor = SurfaceDark),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("AI Agent — DeepSeek", style = MaterialTheme.typography.titleMedium)
+                Text("AI Agent", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Key is stored locally on-device and sent only to api.deepseek.com.",
+                    "Key and prompts are stored on-device and sent only to the endpoint " +
+                        "you set below. Any OpenAI-compatible API works; default is DeepSeek.",
                     style = MaterialTheme.typography.bodyMedium, color = MutedDark,
                 )
                 OutlinedTextField(
@@ -56,14 +58,27 @@ fun SettingsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
+                    value = baseUrl, onValueChange = { baseUrl = it; saved = false },
+                    label = { Text("Base URL") },
+                    placeholder = { Text(Settings.DEFAULT_BASE) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
                     value = model, onValueChange = { model = it; saved = false },
                     label = { Text("Model") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(
+                    "\"/chat/completions\" is appended to the Base URL automatically.",
+                    style = MaterialTheme.typography.labelSmall, color = MutedDark,
+                )
                 Button(onClick = {
                     settings.deepSeekKey = key.trim()
                     settings.model = model.trim().ifBlank { "deepseek-chat" }
+                    settings.baseUrl = baseUrl.trim().ifBlank { Settings.DEFAULT_BASE }
+                    baseUrl = settings.baseUrl
                     saved = true
                 }) { Text(if (saved) "Saved" else "Save") }
             }

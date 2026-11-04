@@ -116,8 +116,9 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(busy = true)
         confirmChannel.clear()
         job = viewModelScope.launch {
-            val agent = ReconAgent(key, settings.model, confirm = ::awaitConfirm)
-                .also { this@AgentViewModel.agent = it }
+            val agent = ReconAgent(
+                key, settings.model, confirm = ::awaitConfirm, baseUrl = settings.baseUrl,
+            ).also { this@AgentViewModel.agent = it }
             val windowed = ContextManager.window(current.turns).first
             val answer = withContext(Dispatchers.IO) {
                 agent.run(text, windowed) { ev -> onEvent(ev) }
