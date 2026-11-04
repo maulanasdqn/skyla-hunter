@@ -2,6 +2,7 @@ package dev.reforge.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.DesktopWindows
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material.icons.filled.Usb
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /** A single Reforge tool. `route == null` means a screen isn't wired up yet. */
@@ -26,6 +28,8 @@ data class ToolDef(
 val reforgeTools = listOf(
     ToolDef("Terminal", "Run commands in the Kali chroot", Icons.Filled.Terminal, Routes.TERMINAL),
     ToolDef("Chroot", "System info, disk usage, status", Icons.Filled.Layers, Routes.CHROOT),
+    ToolDef("KeX Desktop", "TigerVNC Kali XFCE desktop (port 5901)", Icons.Filled.DesktopWindows, Routes.KEX),
+    ToolDef("Wireless", "Monitor mode + AP scan (external adapter)", Icons.Filled.Wifi, Routes.WIRELESS),
     ToolDef("MAC Changer", "Spoof / randomize interface MAC", Icons.Filled.Shuffle, Routes.MAC),
     ToolDef("Kali Services", "ssh, apache, postgresql, mariadb", Icons.Filled.Dns, Routes.SERVICES),
     ToolDef("Recon / Scan", "nmap, rustscan, whatweb, wafw00f", Icons.Filled.Radar, "category/recon"),

@@ -25,8 +25,10 @@ import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
 import dev.reforge.ui.screens.HidScreen
 import dev.reforge.ui.screens.HydraScreen
+import dev.reforge.ui.screens.KexScreen
 import dev.reforge.ui.screens.MacScreen
 import dev.reforge.ui.screens.PayloadScreen
+import dev.reforge.ui.screens.WirelessScreen
 import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
 import dev.reforge.ui.screens.TerminalScreen
@@ -91,6 +93,12 @@ fun ReforgeApp() {
                 }
                 composable(Routes.HYDRA) {
                     HydraScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.KEX) {
+                    KexScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.WIRELESS) {
+                    WirelessScreen(onBack = { nav.popBackStack() })
                 }
                 composable("category/{id}") { entry ->
                     CategoryScreen(
