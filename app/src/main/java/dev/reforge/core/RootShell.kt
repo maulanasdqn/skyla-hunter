@@ -16,6 +16,10 @@ object RootShell {
     private const val KALI_PATH =
         "/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+    // Strips ANSI/VT escape sequences (SGR colors, cursor moves) so tool output
+    // reads cleanly in the UI and doesn't waste LLM tokens on control codes.
+    private val ansiEscape = Regex("\u001B[\\[\\]][0-9;?]*[ -/]*[@-~]|\u001B[@-Z\\\\-_]")
+
     /** Run a raw command as root (outside the chroot). */
     fun root(cmd: String): String = exec(arrayOf("su", "-c", cmd))
 
@@ -65,7 +69,7 @@ object RootShell {
             var lastFlush = System.currentTimeMillis()
             var line: String?
             while (reader.readLine().also { line = it } != null) {
-                val l = line!!.replace("\r", "")
+                val l = ansiEscape.replace(line!!.replace("\r", ""), "")
                 sb.append(l).append('\n')
                 pending.append(l).append('\n')
                 val now = System.currentTimeMillis()
