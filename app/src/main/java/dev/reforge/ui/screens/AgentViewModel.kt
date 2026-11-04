@@ -30,6 +30,8 @@ data class AgentState(
     val title: String = "New chat",
     val contextTokens: Int = 0,
     val sessions: List<SessionMeta> = emptyList(),
+    // A denylisted command awaiting the user's Run anyway / Skip decision.
+    val pendingConfirm: String? = null,
 )
 
 private const val GREETING =
@@ -52,6 +54,10 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     private var outputId: Long? = null
     private var agent: ReconAgent? = null
     private var job: Job? = null
+
+    // Hands the user's Run anyway / Skip decision from the UI thread back to the
+    // blocked agent worker thread.
+    private val confirmChannel = java.util.concurrent.LinkedBlockingQueue<Boolean>()
 
     init {
         val metas = store.list()
@@ -108,8 +114,10 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         _state.value = _state.value.copy(busy = true)
+        confirmChannel.clear()
         job = viewModelScope.launch {
-            val agent = ReconAgent(key, settings.model).also { this@AgentViewModel.agent = it }
+            val agent = ReconAgent(key, settings.model, confirm = ::awaitConfirm)
+                .also { this@AgentViewModel.agent = it }
             val windowed = ContextManager.window(current.turns).first
             val answer = withContext(Dispatchers.IO) {
                 agent.run(text, windowed) { ev -> onEvent(ev) }
@@ -126,12 +134,31 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun stop() {
+        if (_state.value.pendingConfirm != null) confirmChannel.offer(false)
         agent?.cancel()
         job?.cancel()
-        _state.value = _state.value.copy(busy = false, streaming = false)
+        _state.value = _state.value.copy(busy = false, streaming = false, pendingConfirm = null)
         streamingId = null
         outputId = null
         saveCurrent()
+    }
+
+    /** Called from the agent worker thread; blocks until the user decides. */
+    private fun awaitConfirm(cmd: String): Boolean {
+        viewModelScope.launch(Dispatchers.Main) {
+            _state.value = _state.value.copy(pendingConfirm = cmd)
+        }
+        val ok = try { confirmChannel.take() } catch (e: InterruptedException) { false }
+        viewModelScope.launch(Dispatchers.Main) {
+            _state.value = _state.value.copy(pendingConfirm = null)
+        }
+        return ok
+    }
+
+    /** UI taps Run anyway (true) / Skip (false). */
+    fun resolveConfirm(run: Boolean) {
+        _state.value = _state.value.copy(pendingConfirm = null)
+        confirmChannel.offer(run)
     }
 
     // ---- internals ----

@@ -27,6 +27,9 @@ data class AgentEvent(val kind: Kind, val text: String) {
 class ReconAgent(
     private val apiKey: String,
     private val model: String,
+    // Called (and blocks) when a command trips the denylist. Returns true to run
+    // it anyway, false to skip. Default refuses — safe for non-interactive use.
+    private val confirm: (String) -> Boolean = { false },
 ) {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -164,8 +167,15 @@ class ReconAgent(
     private fun execChroot(command: String, emit: (AgentEvent) -> Unit): String {
         if (command.isBlank()) return "error: empty command"
         if (isDangerous(command)) {
-            emit(AgentEvent(AgentEvent.Kind.ERROR, "blocked (potentially destructive): $command"))
-            return "blocked: command looks destructive; ask the user to run it manually."
+            // Don't silently refuse — ask the user inline. confirm() blocks this
+            // worker thread until they tap Run anyway / Skip in the chat.
+            if (cancelled) return "cancelled"
+            val ok = confirm(command)
+            if (!ok) {
+                emit(AgentEvent(AgentEvent.Kind.ERROR, "Skipped by you: $command"))
+                return "User declined to run this command. Choose a safer approach."
+            }
+            emit(AgentEvent(AgentEvent.Kind.ERROR, "Approved by you — running: $command"))
         }
         knownTools.forEach { t ->
             if (Regex("\\b${Regex.escape(t)}\\b").containsMatchIn(command)) usedTools.add(t)

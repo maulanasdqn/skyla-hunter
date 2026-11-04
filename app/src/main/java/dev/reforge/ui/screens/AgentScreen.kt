@@ -108,7 +108,15 @@ fun AgentScreen(vm: AgentViewModel = viewModel()) {
             items(state.messages, key = { it.id }) { msg ->
                 Box(Modifier.fillMaxWidth().animateItem()) { MessageItem(msg, onDownload) }
             }
-            if (state.busy && !state.streaming) item { ThinkingRow() }
+            if (state.busy && !state.streaming && state.pendingConfirm == null) item { ThinkingRow() }
+        }
+
+        state.pendingConfirm?.let { cmd ->
+            ConfirmCard(
+                command = cmd,
+                onRun = { vm.resolveConfirm(true) },
+                onSkip = { vm.resolveConfirm(false) },
+            )
         }
 
         InputBar(
@@ -290,6 +298,42 @@ private fun MessageItem(msg: ChatMessage, onDownload: () -> Unit = {}) {
             Text(msg.text, color = Color(0xFFE88B8B), style = MaterialTheme.typography.bodyMedium)
         }
     }
+}
+
+@Composable
+private fun ConfirmCard(command: String, onRun: () -> Unit, onSkip: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp)).background(Color(0xFF2A2016)).padding(14.dp),
+    ) {
+        Text(
+            "⚠ This command looks destructive",
+            style = MaterialTheme.typography.titleSmall, color = Color(0xFFE0C089),
+        )
+        Spacer(Modifier.size(8.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFF0C1016))
+                .horizontalScroll(rememberScrollState()).padding(10.dp),
+        ) {
+            Text(command, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = Color(0xFFE88B8B))
+        }
+        Spacer(Modifier.size(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = onSkip, modifier = Modifier.weight(1f)) { Text("Skip") }
+            FilledIconButtonText(onClick = onRun, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun FilledIconButtonText(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.material3.Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = Color(0xFFE88B8B), contentColor = Color(0xFF0B0E13),
+        ),
+    ) { Text("Run anyway") }
 }
 
 @Composable
