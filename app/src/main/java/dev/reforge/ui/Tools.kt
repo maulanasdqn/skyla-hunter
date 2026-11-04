@@ -1,0 +1,34 @@
+package dev.reforge.ui
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Radar
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material.icons.filled.Usb
+import androidx.compose.ui.graphics.vector.ImageVector
+
+/** A single Reforge tool. `route == null` means a screen isn't wired up yet. */
+data class ToolDef(
+    val name: String,
+    val detail: String,
+    val icon: ImageVector,
+    val route: String? = null,
+)
+
+/** Single source of truth — Home and the Tools tab both render this list. */
+val reforgeTools = listOf(
+    ToolDef("Terminal", "Run commands in the Kali chroot", Icons.Filled.Terminal, Routes.TERMINAL),
+    ToolDef("Chroot", "System info, disk usage, status", Icons.Filled.Layers, Routes.CHROOT),
+    ToolDef("MAC Changer", "Spoof / randomize interface MAC", Icons.Filled.Shuffle, Routes.MAC),
+    ToolDef("Kali Services", "ssh, apache, postgresql, mariadb", Icons.Filled.Dns, Routes.SERVICES),
+    ToolDef("Recon / Scan", "rustscan, nmap, masscan, whatweb", Icons.Filled.Radar),
+    ToolDef("OSINT", "spiderfoot, amass, theHarvester, sherlock", Icons.Filled.TravelExplore),
+    ToolDef("Web", "nikto, ffuf, feroxbuster, sqlmap, wpscan", Icons.Filled.Language),
+    ToolDef("Passwords", "hydra, john, hashcat, medusa", Icons.Filled.Key),
+    ToolDef("USB / HID", "BadUSB, DuckHunter, USB Arsenal", Icons.Filled.Usb),
+)

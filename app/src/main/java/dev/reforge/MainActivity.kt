@@ -22,6 +22,7 @@ import dev.reforge.ui.Routes
 import dev.reforge.ui.screens.AgentScreen
 import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
+import dev.reforge.ui.screens.MacScreen
 import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
 import dev.reforge.ui.screens.TerminalScreen
@@ -58,7 +59,9 @@ fun ReforgeApp() {
                 startDestination = Routes.DASHBOARD,
                 modifier = Modifier.padding(pad),
             ) {
-                composable(Routes.DASHBOARD) { DashboardScreen() }
+                composable(Routes.DASHBOARD) {
+                    DashboardScreen(onOpen = { route -> nav.navigate(route) })
+                }
                 composable(Routes.AGENT) { AgentScreen() }
                 composable(Routes.TOOLS) {
                     ToolsScreen(onOpen = { route -> nav.navigate(route) })
@@ -72,6 +75,9 @@ fun ReforgeApp() {
                 }
                 composable(Routes.CHROOT) {
                     ChrootScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.MAC) {
+                    MacScreen(onBack = { nav.popBackStack() })
                 }
             }
         }
