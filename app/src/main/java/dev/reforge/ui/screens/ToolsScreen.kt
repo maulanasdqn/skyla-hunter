@@ -26,16 +26,17 @@ import dev.reforge.ui.theme.SurfaceDark
 private data class ToolGroup(val name: String, val detail: String, val route: String? = null)
 
 private val groups = listOf(
+    ToolGroup("Terminal", "Run commands in the Kali chroot", route = "terminal"),
+    ToolGroup("Kali Services", "Start / stop ssh, apache, postgresql…", route = "services"),
     ToolGroup("Recon / Scan", "rustscan, nmap, masscan, whatweb"),
     ToolGroup("OSINT", "recon-ng, spiderfoot, amass, theHarvester, sherlock"),
     ToolGroup("Web", "nikto, ffuf, feroxbuster, sqlmap, wpscan"),
     ToolGroup("Passwords", "hydra, john, hashcat, medusa"),
-    ToolGroup("Kali Services", "Start / stop ssh, apache, postgresql…", route = "services"),
     ToolGroup("USB / HID", "BadUSB, DuckHunter, USB Arsenal"),
 )
 
 @Composable
-fun ToolsScreen(onOpenServices: () -> Unit = {}) {
+fun ToolsScreen(onOpen: (String) -> Unit = {}) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Tools", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 12.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -43,7 +44,7 @@ fun ToolsScreen(onOpenServices: () -> Unit = {}) {
                 val clickable = g.route != null
                 Card(
                     Modifier.fillMaxWidth().let {
-                        if (clickable) it.clickable { onOpenServices() } else it
+                        if (clickable) it.clickable { onOpen(g.route!!) } else it
                     },
                     colors = CardDefaults.cardColors(containerColor = SurfaceDark),
                 ) {

@@ -23,6 +23,7 @@ import dev.reforge.ui.screens.AgentScreen
 import dev.reforge.ui.screens.DashboardScreen
 import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
+import dev.reforge.ui.screens.TerminalScreen
 import dev.reforge.ui.screens.ToolsScreen
 import dev.reforge.ui.theme.ReforgeTheme
 
@@ -59,11 +60,14 @@ fun ReforgeApp() {
                 composable(Routes.DASHBOARD) { DashboardScreen() }
                 composable(Routes.AGENT) { AgentScreen() }
                 composable(Routes.TOOLS) {
-                    ToolsScreen(onOpenServices = { nav.navigate(Routes.SERVICES) })
+                    ToolsScreen(onOpen = { route -> nav.navigate(route) })
                 }
                 composable(Routes.SETTINGS) { SettingsScreen() }
                 composable(Routes.SERVICES) {
                     ServicesScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.TERMINAL) {
+                    TerminalScreen(onBack = { nav.popBackStack() })
                 }
             }
         }
