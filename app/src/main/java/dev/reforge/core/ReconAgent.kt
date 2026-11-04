@@ -55,13 +55,21 @@ class ReconAgent(
         - Read each result, then decide the next step. Summarize findings in concise markdown.
     """.trimIndent()
 
-    private val allow = setOf(
-        "rustscan", "nmap", "masscan", "subfinder", "amass", "sublist3r", "whatweb",
-        "dnsenum", "dnsrecon", "dig", "host", "nslookup", "whois", "theHarvester",
-        "theharvester", "wafw00f", "nikto", "feroxbuster", "ffuf", "gobuster", "sherlock",
-        "holehe", "finalrecon", "fierce", "dnstwist", "nbtscan", "dmitry", "curl",
-        "wpscan", "echo", "compgen", "which", "command", "cat", "ls", "grep", "head", "tail",
+    // Denylist of clearly destructive / dangerous patterns. Everything else is
+    // allowed (this is the user's own authorized device). Guards against a
+    // malicious scan target injecting a destructive command into the loop.
+    private val denyPatterns = listOf(
+        Regex("""\brm\s+-\w*[rf]"""), Regex("""\bdd\b[^|]*\bof="""), Regex("""\bmkfs\b"""),
+        Regex("""\bshred\b"""), Regex("""\bfdisk\b"""), Regex("""\bparted\b"""),
+        Regex("""\bwipefs\b"""), Regex("""\bmkswap\b"""),
+        Regex("""\b(reboot|shutdown|poweroff|halt)\b"""),
+        Regex(""">\s*/dev/(sd|block|mmc|null/)"""), Regex("""\bof=/dev/"""),
+        Regex(""":\s*\(\s*\)\s*\{"""), // fork bomb
+        Regex("""\buserdel\b"""), Regex("""\b(passwd|chpasswd)\b"""),
+        Regex("""\bchmod\s+-R\s+777\s+/"""), Regex("""\bmv\s+/\s"""),
     )
+
+    private fun isDangerous(cmd: String): Boolean = denyPatterns.any { it.containsMatchIn(cmd) }
 
     fun run(userGoal: String, history: List<JSONObject>, emit: (AgentEvent) -> Unit): String {
         val messages = JSONArray()
@@ -132,10 +140,9 @@ class ReconAgent(
 
     private fun execChroot(command: String, emit: (AgentEvent) -> Unit): String {
         if (command.isBlank()) return "error: empty command"
-        val first = command.trimStart().substringBefore(' ').substringAfterLast('/')
-        if (first !in allow) {
-            emit(AgentEvent(AgentEvent.Kind.ERROR, "blocked (not allowlisted): $command"))
-            return "blocked: '$first' is not in the recon allowlist."
+        if (isDangerous(command)) {
+            emit(AgentEvent(AgentEvent.Kind.ERROR, "blocked (potentially destructive): $command"))
+            return "blocked: command looks destructive; ask the user to run it manually."
         }
         emit(AgentEvent(AgentEvent.Kind.COMMAND, command))
         val out = RootShell.chroot("$command 2>&1 | head -c 12000")
