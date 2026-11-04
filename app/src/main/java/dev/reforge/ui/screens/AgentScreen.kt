@@ -1,5 +1,6 @@
 package dev.reforge.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -29,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -39,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -54,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -72,6 +76,15 @@ fun AgentScreen(vm: AgentViewModel = viewModel()) {
     var input by remember { mutableStateOf("") }
     var showHistory by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val ctx = LocalContext.current
+    val onDownload = {
+        val path = ReportExporter.save(ctx, state.title, state.messages)
+        Toast.makeText(
+            ctx,
+            if (path != null) "Report saved to $path" else "Export failed",
+            Toast.LENGTH_LONG,
+        ).show()
+    }
 
     LaunchedEffect(state.messages.size, state.busy) {
         val count = state.messages.size + if (state.busy) 1 else 0
@@ -93,7 +106,7 @@ fun AgentScreen(vm: AgentViewModel = viewModel()) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(state.messages, key = { it.id }) { msg ->
-                Box(Modifier.fillMaxWidth().animateItem()) { MessageItem(msg) }
+                Box(Modifier.fillMaxWidth().animateItem()) { MessageItem(msg, onDownload) }
             }
             if (state.busy && !state.streaming) item { ThinkingRow() }
         }
@@ -207,8 +220,32 @@ private fun relTime(ts: Long): String =
     ).toString()
 
 @Composable
-private fun MessageItem(msg: ChatMessage) {
+private fun MessageItem(msg: ChatMessage, onDownload: () -> Unit = {}) {
     when (msg.kind) {
+        MsgKind.RUNINFO -> {
+            val tools = msg.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceDark).padding(14.dp),
+            ) {
+                Column {
+                    Text("Run complete", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.size(6.dp))
+                    Text("Tools used", style = MaterialTheme.typography.labelSmall, color = MutedDark)
+                    Text(
+                        tools.joinToString("  ·  "),
+                        style = MaterialTheme.typography.bodyMedium, color = Accent,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    OutlinedButton(onClick = onDownload) {
+                        Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Download report")
+                    }
+                }
+            }
+        }
+
         MsgKind.USER -> Box(Modifier.fillMaxWidth()) {
             Box(
                 Modifier.align(Alignment.CenterEnd).widthIn(max = 300.dp)
@@ -281,7 +318,7 @@ private fun InputBar(
     onStop: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {

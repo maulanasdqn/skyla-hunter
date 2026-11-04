@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-enum class MsgKind { USER, THOUGHT, COMMAND, OUTPUT, ANSWER, ERROR }
+enum class MsgKind { USER, THOUGHT, COMMAND, OUTPUT, ANSWER, ERROR, RUNINFO }
 
 data class ChatMessage(
     val id: Long,
@@ -145,6 +145,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 AgentEvent.Kind.OUTPUT -> { streamingId = null; append(MsgKind.OUTPUT, ev.text) }
                 AgentEvent.Kind.ANSWER -> { streamingId = null; append(MsgKind.ANSWER, ev.text) }
                 AgentEvent.Kind.ERROR -> { streamingId = null; append(MsgKind.ERROR, ev.text) }
+                AgentEvent.Kind.RUNINFO -> { streamingId = null; append(MsgKind.RUNINFO, ev.text) }
             }
         }
     }

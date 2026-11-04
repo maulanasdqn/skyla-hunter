@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 
 /** One event surfaced to the UI as the agent works. */
 data class AgentEvent(val kind: Kind, val text: String) {
-    enum class Kind { STREAM_DELTA, STREAM_END, COMMAND, OUTPUT, ANSWER, ERROR }
+    enum class Kind { STREAM_DELTA, STREAM_END, COMMAND, OUTPUT, ANSWER, ERROR, RUNINFO }
 }
 
 /**
@@ -71,6 +71,21 @@ class ReconAgent(
 
     private fun isDangerous(cmd: String): Boolean = denyPatterns.any { it.containsMatchIn(cmd) }
 
+    // Recon tools recognized for the "tools used" run summary.
+    private val knownTools = listOf(
+        "rustscan", "nmap", "masscan", "subfinder", "amass", "sublist3r", "whatweb",
+        "dnsenum", "dnsrecon", "dig", "host", "whois", "theHarvester", "wafw00f",
+        "nikto", "feroxbuster", "ffuf", "gobuster", "sherlock", "holehe", "finalrecon",
+        "fierce", "dnstwist", "nbtscan", "dmitry", "curl", "wpscan",
+    )
+    private val usedTools = LinkedHashSet<String>()
+
+    private fun emitRunInfo(emit: (AgentEvent) -> Unit) {
+        if (usedTools.isNotEmpty()) {
+            emit(AgentEvent(AgentEvent.Kind.RUNINFO, usedTools.joinToString(",")))
+        }
+    }
+
     fun run(userGoal: String, history: List<JSONObject>, emit: (AgentEvent) -> Unit): String {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
@@ -85,8 +100,9 @@ class ReconAgent(
                 stream(messages, emit)
             } catch (e: Exception) {
                 emit(AgentEvent(AgentEvent.Kind.STREAM_END, ""))
-                if (cancelled) { emit(AgentEvent(AgentEvent.Kind.ERROR, "Stopped.")); return finalAnswer }
+                if (cancelled) { emit(AgentEvent(AgentEvent.Kind.ERROR, "Stopped.")); emitRunInfo(emit); return finalAnswer }
                 emit(AgentEvent(AgentEvent.Kind.ERROR, "API error: ${e.message}"))
+                emitRunInfo(emit)
                 return "API error: ${e.message}"
             }
             emit(AgentEvent(AgentEvent.Kind.STREAM_END, ""))
@@ -95,6 +111,7 @@ class ReconAgent(
             val toolCalls = msg.optJSONArray("tool_calls")
             if (toolCalls == null || toolCalls.length() == 0) {
                 finalAnswer = msg.optString("content", "").trim()
+                emitRunInfo(emit)
                 return finalAnswer
             }
             for (i in 0 until toolCalls.length()) {
@@ -115,7 +132,7 @@ class ReconAgent(
                 )
             }
         }
-        if (cancelled) { emit(AgentEvent(AgentEvent.Kind.ERROR, "Stopped.")); return finalAnswer }
+        if (cancelled) { emit(AgentEvent(AgentEvent.Kind.ERROR, "Stopped.")); emitRunInfo(emit); return finalAnswer }
 
         // Step budget hit: force a final, tool-free summary so the user always
         // gets a conclusion instead of a dead-end "step limit" message.
@@ -130,9 +147,11 @@ class ReconAgent(
             stream(messages, emit, "none")
         } catch (e: Exception) {
             emit(AgentEvent(AgentEvent.Kind.STREAM_END, ""))
+            emitRunInfo(emit)
             return finalAnswer
         }
         emit(AgentEvent(AgentEvent.Kind.STREAM_END, ""))
+        emitRunInfo(emit)
         return summary.optString("content", "").trim().ifBlank { finalAnswer }
     }
 
@@ -143,6 +162,9 @@ class ReconAgent(
         if (isDangerous(command)) {
             emit(AgentEvent(AgentEvent.Kind.ERROR, "blocked (potentially destructive): $command"))
             return "blocked: command looks destructive; ask the user to run it manually."
+        }
+        knownTools.forEach { t ->
+            if (Regex("\\b${Regex.escape(t)}\\b").containsMatchIn(command)) usedTools.add(t)
         }
         emit(AgentEvent(AgentEvent.Kind.COMMAND, command))
         val out = RootShell.chroot("$command 2>&1 | head -c 12000")
