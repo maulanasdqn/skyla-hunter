@@ -20,6 +20,7 @@ import androidx.navigation.compose.rememberNavController
 import dev.reforge.ui.ReforgeBottomBar
 import dev.reforge.ui.Routes
 import dev.reforge.ui.screens.AgentScreen
+import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
 import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
@@ -68,6 +69,9 @@ fun ReforgeApp() {
                 }
                 composable(Routes.TERMINAL) {
                     TerminalScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.CHROOT) {
+                    ChrootScreen(onBack = { nav.popBackStack() })
                 }
             }
         }

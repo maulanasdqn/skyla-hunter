@@ -27,6 +27,7 @@ private data class ToolGroup(val name: String, val detail: String, val route: St
 
 private val groups = listOf(
     ToolGroup("Terminal", "Run commands in the Kali chroot", route = "terminal"),
+    ToolGroup("Chroot", "Kali system info, disk usage, status", route = "chroot"),
     ToolGroup("Kali Services", "Start / stop ssh, apache, postgresql…", route = "services"),
     ToolGroup("Recon / Scan", "rustscan, nmap, masscan, whatweb"),
     ToolGroup("OSINT", "recon-ng, spiderfoot, amass, theHarvester, sherlock"),
