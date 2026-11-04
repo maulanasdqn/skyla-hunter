@@ -30,5 +30,5 @@ val reforgeTools = listOf(
     ToolDef("OSINT", "spiderfoot, amass, theHarvester, sherlock", Icons.Filled.TravelExplore),
     ToolDef("Web", "nikto, ffuf, feroxbuster, sqlmap, wpscan", Icons.Filled.Language),
     ToolDef("Passwords", "hydra, john, hashcat, medusa", Icons.Filled.Key),
-    ToolDef("USB / HID", "BadUSB, DuckHunter, USB Arsenal", Icons.Filled.Usb),
+    ToolDef("DuckHunter (HID)", "BadUSB keystroke injection via /dev/hidg0", Icons.Filled.Usb, Routes.HID),
 )

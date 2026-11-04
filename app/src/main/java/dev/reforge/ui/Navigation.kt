@@ -24,6 +24,7 @@ object Routes {
     const val TERMINAL = "terminal"
     const val CHROOT = "chroot"
     const val MAC = "mac"
+    const val HID = "hid"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)

@@ -22,6 +22,7 @@ import dev.reforge.ui.Routes
 import dev.reforge.ui.screens.AgentScreen
 import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
+import dev.reforge.ui.screens.HidScreen
 import dev.reforge.ui.screens.MacScreen
 import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
@@ -78,6 +79,9 @@ fun ReforgeApp() {
                 }
                 composable(Routes.MAC) {
                     MacScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.HID) {
+                    HidScreen(onBack = { nav.popBackStack() })
                 }
             }
         }
