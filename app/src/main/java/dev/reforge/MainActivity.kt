@@ -24,6 +24,7 @@ import dev.reforge.ui.screens.CategoryScreen
 import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
 import dev.reforge.ui.screens.HidScreen
+import dev.reforge.ui.screens.HydraScreen
 import dev.reforge.ui.screens.MacScreen
 import dev.reforge.ui.screens.PayloadScreen
 import dev.reforge.ui.screens.ServicesScreen
@@ -87,6 +88,9 @@ fun ReforgeApp() {
                 }
                 composable(Routes.PAYLOAD) {
                     PayloadScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.HYDRA) {
+                    HydraScreen(onBack = { nav.popBackStack() })
                 }
                 composable("category/{id}") { entry ->
                     CategoryScreen(

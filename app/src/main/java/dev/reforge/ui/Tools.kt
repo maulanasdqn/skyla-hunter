@@ -3,6 +3,7 @@ package dev.reforge.ui
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Memory
@@ -32,5 +33,6 @@ val reforgeTools = listOf(
     ToolDef("OSINT", "theHarvester, subfinder, sherlock, whois", Icons.Filled.TravelExplore, "category/osint"),
     ToolDef("Exploits", "searchsploit — Exploit-DB search", Icons.Filled.BugReport, "category/exploits"),
     ToolDef("Payloads", "msfvenom payload generator", Icons.Filled.Memory, Routes.PAYLOAD),
+    ToolDef("Brute-force", "hydra — ssh/ftp/mysql/rdp/smb login", Icons.Filled.Key, Routes.HYDRA),
     ToolDef("DuckHunter (HID)", "BadUSB keystroke injection via /dev/hidg0", Icons.Filled.Usb, Routes.HID),
 )
