@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Radar
+import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.TravelExplore
@@ -30,6 +31,7 @@ val reforgeTools = listOf(
     ToolDef("Chroot", "System info, disk usage, status", Icons.Filled.Layers, Routes.CHROOT),
     ToolDef("KeX Desktop", "TigerVNC Kali XFCE desktop (port 5901)", Icons.Filled.DesktopWindows, Routes.KEX),
     ToolDef("Wireless", "Monitor mode + AP scan (external adapter)", Icons.Filled.Wifi, Routes.WIRELESS),
+    ToolDef("IR Remote", "TV-B-Gone + universal remote (IR blaster)", Icons.Filled.SettingsRemote, Routes.IR),
     ToolDef("MAC Changer", "Spoof / randomize interface MAC", Icons.Filled.Shuffle, Routes.MAC),
     ToolDef("Kali Services", "ssh, apache, postgresql, mariadb", Icons.Filled.Dns, Routes.SERVICES),
     ToolDef("Recon / Scan", "nmap, rustscan, whatweb, wafw00f", Icons.Filled.Radar, "category/recon"),

@@ -55,6 +55,7 @@ object Routes {
     const val HYDRA = "hydra"
     const val KEX = "kex"
     const val WIRELESS = "wireless"
+    const val IR = "ir"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)

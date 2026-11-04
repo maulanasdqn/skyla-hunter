@@ -25,6 +25,7 @@ import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
 import dev.reforge.ui.screens.HidScreen
 import dev.reforge.ui.screens.HydraScreen
+import dev.reforge.ui.screens.IrScreen
 import dev.reforge.ui.screens.KexScreen
 import dev.reforge.ui.screens.MacScreen
 import dev.reforge.ui.screens.PayloadScreen
@@ -99,6 +100,9 @@ fun ReforgeApp() {
                 }
                 composable(Routes.WIRELESS) {
                     WirelessScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.IR) {
+                    IrScreen(onBack = { nav.popBackStack() })
                 }
                 composable("category/{id}") { entry ->
                     CategoryScreen(
