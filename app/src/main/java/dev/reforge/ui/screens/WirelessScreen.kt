@@ -1,6 +1,7 @@
 package dev.reforge.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,6 +119,35 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
             }
 
             vm.message?.let { Text(it, color = MutedDark, style = MaterialTheme.typography.bodyMedium) }
+
+            // selected-AP actions
+            vm.selected?.let { ap ->
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SurfaceDark2)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Target: ${ap.essid}", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                        Text("${ap.bssid} · ch ${ap.channel} · ${ap.enc}", style = MaterialTheme.typography.bodySmall, color = MutedDark, fontFamily = FontFamily.Monospace)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = { vm.deauth() }, enabled = !vm.working,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A2130), contentColor = Color(0xFFE88B8B)),
+                            ) { Text("Deauth ×10") }
+                            Button(
+                                onClick = { vm.capture() }, enabled = !vm.working,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Color(0xFF0B0E13)),
+                            ) { Text("Capture") }
+                        }
+                        if (vm.working) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Accent)
+                                Text("working…", color = MutedDark, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        vm.action?.let { Text(it, color = MutedDark, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
+                    }
+                }
+            }
         }
 
         // AP list
@@ -125,7 +155,9 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(vm.aps, key = { it.bssid }) { ap -> ApRow(ap) }
+            items(vm.aps, key = { it.bssid }) { ap ->
+                ApRow(ap, selected = vm.selected?.bssid == ap.bssid) { vm.select(ap) }
+            }
         }
 
         Text(
@@ -138,9 +170,12 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
 }
 
 @Composable
-private fun ApRow(ap: ApInfo) {
+private fun ApRow(ap: ApInfo, selected: Boolean, onClick: () -> Unit) {
     val open = ap.enc.contains("OPN", true) || ap.enc.isBlank()
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
+    Card(
+        Modifier.fillMaxWidth().clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = if (selected) SurfaceDark2 else SurfaceDark),
+    ) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             SignalBars(ap.power)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
