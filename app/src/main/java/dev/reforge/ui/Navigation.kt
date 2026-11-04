@@ -20,6 +20,7 @@ object Routes {
     const val AGENT = "agent"
     const val TOOLS = "tools"
     const val SETTINGS = "settings"
+    const val SERVICES = "services"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)

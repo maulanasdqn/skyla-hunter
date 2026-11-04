@@ -21,6 +21,7 @@ import dev.reforge.ui.ReforgeBottomBar
 import dev.reforge.ui.Routes
 import dev.reforge.ui.screens.AgentScreen
 import dev.reforge.ui.screens.DashboardScreen
+import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
 import dev.reforge.ui.screens.ToolsScreen
 import dev.reforge.ui.theme.ReforgeTheme
@@ -57,8 +58,13 @@ fun ReforgeApp() {
             ) {
                 composable(Routes.DASHBOARD) { DashboardScreen() }
                 composable(Routes.AGENT) { AgentScreen() }
-                composable(Routes.TOOLS) { ToolsScreen() }
+                composable(Routes.TOOLS) {
+                    ToolsScreen(onOpenServices = { nav.navigate(Routes.SERVICES) })
+                }
                 composable(Routes.SETTINGS) { SettingsScreen() }
+                composable(Routes.SERVICES) {
+                    ServicesScreen(onBack = { nav.popBackStack() })
+                }
             }
         }
     }

@@ -11,7 +11,10 @@ import java.util.concurrent.TimeUnit
 
 /** One event surfaced to the UI as the agent works. */
 data class AgentEvent(val kind: Kind, val text: String) {
-    enum class Kind { STREAM_DELTA, STREAM_END, COMMAND, OUTPUT, ANSWER, ERROR, RUNINFO }
+    enum class Kind {
+        STREAM_DELTA, STREAM_END, COMMAND, OUTPUT, OUTPUT_DELTA, OUTPUT_END,
+        ANSWER, ERROR, RUNINFO,
+    }
 }
 
 /**
@@ -36,6 +39,7 @@ class ReconAgent(
     fun cancel() {
         cancelled = true
         currentCall?.cancel()
+        RootShell.cancelProc()
     }
 
     private val systemPrompt = """
@@ -167,8 +171,13 @@ class ReconAgent(
             if (Regex("\\b${Regex.escape(t)}\\b").containsMatchIn(command)) usedTools.add(t)
         }
         emit(AgentEvent(AgentEvent.Kind.COMMAND, command))
-        val out = RootShell.chroot("$command 2>&1 | head -c 12000")
-        emit(AgentEvent(AgentEvent.Kind.OUTPUT, out.ifBlank { "(no output)" }))
+        var any = false
+        val out = RootShell.chrootStream(command) { chunk ->
+            any = true
+            emit(AgentEvent(AgentEvent.Kind.OUTPUT_DELTA, chunk))
+        }
+        if (!any) emit(AgentEvent(AgentEvent.Kind.OUTPUT_DELTA, "(no output)"))
+        emit(AgentEvent(AgentEvent.Kind.OUTPUT_END, ""))
         return out.ifBlank { "(no output)" }
     }
 

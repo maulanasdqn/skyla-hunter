@@ -49,6 +49,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     private lateinit var current: Session
     private var seq = 1L
     private var streamingId: Long? = null
+    private var outputId: Long? = null
     private var agent: ReconAgent? = null
     private var job: Job? = null
 
@@ -119,6 +120,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             }
             _state.value = _state.value.copy(busy = false, streaming = false)
             streamingId = null
+            outputId = null
             saveCurrent()
         }
     }
@@ -128,6 +130,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         job?.cancel()
         _state.value = _state.value.copy(busy = false, streaming = false)
         streamingId = null
+        outputId = null
         saveCurrent()
     }
 
@@ -141,11 +144,13 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                     streamingId = null
                     _state.value = _state.value.copy(streaming = false)
                 }
-                AgentEvent.Kind.COMMAND -> { streamingId = null; append(MsgKind.COMMAND, "$ ${ev.text}") }
-                AgentEvent.Kind.OUTPUT -> { streamingId = null; append(MsgKind.OUTPUT, ev.text) }
-                AgentEvent.Kind.ANSWER -> { streamingId = null; append(MsgKind.ANSWER, ev.text) }
-                AgentEvent.Kind.ERROR -> { streamingId = null; append(MsgKind.ERROR, ev.text) }
-                AgentEvent.Kind.RUNINFO -> { streamingId = null; append(MsgKind.RUNINFO, ev.text) }
+                AgentEvent.Kind.COMMAND -> { streamingId = null; outputId = null; append(MsgKind.COMMAND, "$ ${ev.text}") }
+                AgentEvent.Kind.OUTPUT_DELTA -> { streamingId = null; appendOutputDelta(ev.text) }
+                AgentEvent.Kind.OUTPUT_END -> { outputId = null }
+                AgentEvent.Kind.OUTPUT -> { streamingId = null; outputId = null; append(MsgKind.OUTPUT, ev.text) }
+                AgentEvent.Kind.ANSWER -> { streamingId = null; outputId = null; append(MsgKind.ANSWER, ev.text) }
+                AgentEvent.Kind.ERROR -> { streamingId = null; outputId = null; append(MsgKind.ERROR, ev.text) }
+                AgentEvent.Kind.RUNINFO -> { streamingId = null; outputId = null; append(MsgKind.RUNINFO, ev.text) }
             }
         }
     }
@@ -161,6 +166,25 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             val idx = current.ui.indexOfLast { it.id == id }
             if (idx >= 0) {
                 current.ui[idx] = current.ui[idx].copy(text = current.ui[idx].text + delta)
+                _state.value = _state.value.copy(messages = current.ui.toList())
+            }
+        }
+    }
+
+    /** Grow the live tool-output bubble, keeping only the tail so huge scans stay light. */
+    private fun appendOutputDelta(delta: String) {
+        val id = outputId
+        if (id == null) {
+            val msg = ChatMessage(seq++, MsgKind.OUTPUT, delta)
+            current.ui.add(msg)
+            outputId = msg.id
+            _state.value = _state.value.copy(messages = current.ui.toList())
+        } else {
+            val idx = current.ui.indexOfLast { it.id == id }
+            if (idx >= 0) {
+                var t = current.ui[idx].text + delta
+                if (t.length > 8000) t = "…\n" + t.takeLast(8000)
+                current.ui[idx] = current.ui[idx].copy(text = t)
                 _state.value = _state.value.copy(messages = current.ui.toList())
             }
         }
