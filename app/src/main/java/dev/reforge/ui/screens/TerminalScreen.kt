@@ -1,15 +1,23 @@
 package dev.reforge.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -31,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -40,15 +49,26 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.reforge.ui.theme.Accent
 import dev.reforge.ui.theme.MutedDark
-import dev.reforge.ui.theme.SurfaceDark2
+
+// Terminal palette
+private val TermBg = Color(0xFF0B0E14)
+private val TermBar = Color(0xFF151A23)
+private val Prompt = Color(0xFF43D08A)
+private val OutText = Color(0xFFAEB9C9)
+private val CmdText = Color(0xFFE6ECF5)
+private val Dim = Color(0xFF5A6677)
 
 @Composable
 fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
     var input by remember { mutableStateOf("") }
-    val scroll = rememberScrollState()
-    LaunchedEffect(vm.output) { scroll.animateScrollTo(scroll.maxValue) }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(vm.lines.size, vm.lines.lastOrNull()?.text?.length) {
+        if (vm.lines.isNotEmpty()) listState.animateScrollToItem(vm.lines.size - 1)
+    }
 
     Column(Modifier.fillMaxSize()) {
+        // App header
         Row(
             Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 10.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -62,21 +82,25 @@ fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
             }
         }
 
+        // The "terminal window"
         Column(
-            Modifier.weight(1f).fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .background(Color(0xFF0C1016), RoundedCornerShape(10.dp))
-                .verticalScroll(scroll)
-                .padding(12.dp),
+            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFF1E2531), RoundedCornerShape(12.dp))
+                .background(TermBg),
         ) {
-            Text(
-                vm.output,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                color = Color(0xFFCBD3E1),
-            )
+            TitleBar()
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                items(vm.lines, key = { it.id }) { line -> TermLineView(line) }
+            }
         }
 
+        // Input
         Row(
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -85,20 +109,21 @@ fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
             TextField(
                 value = input,
                 onValueChange = { input = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("command…") },
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)),
+                placeholder = { Text("command…", fontFamily = FontFamily.Monospace, color = Dim) },
+                prefix = { Text("❯ ", color = Prompt, fontFamily = FontFamily.Monospace) },
                 singleLine = true,
-                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp),
+                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, color = CmdText),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(
                     onGo = { if (input.isNotBlank()) { vm.run(input.trim()); input = "" } }
                 ),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = SurfaceDark2,
-                    unfocusedContainerColor = SurfaceDark2,
+                    focusedContainerColor = TermBar,
+                    unfocusedContainerColor = TermBar,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = Accent,
+                    cursorColor = Prompt,
                 ),
             )
             if (vm.busy) {
@@ -118,5 +143,45 @@ fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
                 ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Run") }
             }
         }
+    }
+}
+
+@Composable
+private fun TitleBar() {
+    Row(
+        Modifier.fillMaxWidth().background(TermBar).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Dot(Color(0xFFFF5F57)); Spacer(Modifier.size(7.dp))
+        Dot(Color(0xFFFEBC2E)); Spacer(Modifier.size(7.dp))
+        Dot(Color(0xFF28C840))
+        Spacer(Modifier.weight(1f))
+        Text("root@kali: ~", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = Dim)
+        Spacer(Modifier.weight(1f))
+        // keep the label centered by balancing the dots' width
+        Spacer(Modifier.size(53.dp))
+    }
+}
+
+@Composable
+private fun Dot(color: Color) {
+    Spacer(Modifier.size(11.dp).clip(CircleShape).background(color))
+}
+
+@Composable
+private fun TermLineView(line: TermLine) {
+    when (line.kind) {
+        TermKind.COMMAND -> Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text("❯ ", color = Prompt, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                Text(line.text, color = CmdText, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+            }
+        }
+        TermKind.OUTPUT -> Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+            Text(line.text, color = OutText, fontFamily = FontFamily.Monospace, fontSize = 12.5.sp, lineHeight = 17.sp)
+        }
+        TermKind.INFO -> Text(
+            line.text, color = Dim, fontFamily = FontFamily.Monospace, fontSize = 12.sp,
+        )
     }
 }
