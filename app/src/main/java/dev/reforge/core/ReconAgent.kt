@@ -32,6 +32,9 @@ class ReconAgent(
     private val confirm: (String) -> Boolean = { false },
     // OpenAI-compatible endpoint base; "/chat/completions" is appended.
     private val baseUrl: String = "https://api.deepseek.com",
+    // Provider-specific extras the user configures in Settings.
+    private val extraHeaders: String = "",
+    private val extraBody: String = "",
 ) {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -208,22 +211,31 @@ class ReconAgent(
         emit: (AgentEvent) -> Unit,
         toolChoice: String = "auto",
     ): JSONObject {
-        val body = JSONObject()
+        val bodyObj = JSONObject()
             .put("model", model)
             .put("messages", messages)
             .put("tools", toolsSpec())
             .put("tool_choice", toolChoice)
             .put("temperature", 0.2)
             .put("stream", true)
-            .toString()
+        // Merge any provider-specific top-level fields (e.g. {"uncensored": true}).
+        if (extraBody.isNotBlank()) {
+            try {
+                val eb = JSONObject(extraBody)
+                val keys = eb.keys()
+                while (keys.hasNext()) { val k = keys.next(); bodyObj.put(k, eb.get(k)) }
+            } catch (_: Exception) { /* ignore malformed extra body */ }
+        }
+        val body = bodyObj.toString()
 
-        val req = Request.Builder()
+        val builder = Request.Builder()
             .url("${baseUrl.trim().trimEnd('/')}/chat/completions")
             .addHeader("Authorization", "Bearer $apiKey")
             .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "text/event-stream")
             .post(body.toRequestBody("application/json".toMediaType()))
-            .build()
+        parseHeaders(extraHeaders).forEach { (k, v) -> builder.addHeader(k, v) }
+        val req = builder.build()
 
         val content = StringBuilder()
         val tools = HashMap<Int, Array<Any>>()
@@ -280,6 +292,13 @@ class ReconAgent(
         }
         return msg
     }
+
+    /** Parse "Key: Value" lines into header pairs; blank/invalid lines ignored. */
+    private fun parseHeaders(raw: String): List<Pair<String, String>> =
+        raw.lineSequence().mapNotNull { line ->
+            val i = line.indexOf(':')
+            if (i <= 0) null else line.substring(0, i).trim() to line.substring(i + 1).trim()
+        }.filter { it.first.isNotEmpty() && it.second.isNotEmpty() }.toList()
 
     private fun toolsSpec(): JSONArray {
         val execChroot = JSONObject().put("type", "function").put(

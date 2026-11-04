@@ -118,6 +118,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         job = viewModelScope.launch {
             val agent = ReconAgent(
                 key, settings.model, confirm = ::awaitConfirm, baseUrl = settings.baseUrl,
+                extraHeaders = settings.customHeaders, extraBody = settings.extraBody,
             ).also { this@AgentViewModel.agent = it }
             val windowed = ContextManager.window(current.turns).first
             val answer = withContext(Dispatchers.IO) {

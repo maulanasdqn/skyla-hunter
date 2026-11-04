@@ -19,10 +19,22 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_BASE, DEFAULT_BASE)?.ifBlank { DEFAULT_BASE } ?: DEFAULT_BASE
         set(v) = prefs.edit().putString(KEY_BASE, v).apply()
 
+    /** Extra request headers, one "Key: Value" per line (provider-specific). */
+    var customHeaders: String
+        get() = prefs.getString(KEY_HEADERS, "") ?: ""
+        set(v) = prefs.edit().putString(KEY_HEADERS, v).apply()
+
+    /** Extra top-level JSON merged into the request body (provider-specific). */
+    var extraBody: String
+        get() = prefs.getString(KEY_EXTRA, "") ?: ""
+        set(v) = prefs.edit().putString(KEY_EXTRA, v).apply()
+
     companion object {
         const val DEFAULT_BASE = "https://api.deepseek.com"
         private const val KEY_DS = "deepseek_key"
         private const val KEY_MODEL = "model"
         private const val KEY_BASE = "base_url"
+        private const val KEY_HEADERS = "custom_headers"
+        private const val KEY_EXTRA = "extra_body"
     }
 }

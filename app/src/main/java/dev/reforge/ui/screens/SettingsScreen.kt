@@ -31,6 +31,8 @@ fun SettingsScreen() {
     var key by remember { mutableStateOf(settings.deepSeekKey) }
     var model by remember { mutableStateOf(settings.model) }
     var baseUrl by remember { mutableStateOf(settings.baseUrl) }
+    var headers by remember { mutableStateOf(settings.customHeaders) }
+    var extraBody by remember { mutableStateOf(settings.extraBody) }
     var saved by remember { mutableStateOf(false) }
 
     Column(
@@ -74,10 +76,29 @@ fun SettingsScreen() {
                     "\"/chat/completions\" is appended to the Base URL automatically.",
                     style = MaterialTheme.typography.labelSmall, color = MutedDark,
                 )
+                OutlinedTextField(
+                    value = headers, onValueChange = { headers = it; saved = false },
+                    label = { Text("Custom headers (optional)") },
+                    placeholder = { Text("X-My-Header: value\nX-Another: value") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = extraBody, onValueChange = { extraBody = it; saved = false },
+                    label = { Text("Extra body JSON (optional)") },
+                    placeholder = { Text("{\"uncensored\": true}") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "One \"Key: Value\" per line for headers. Extra JSON is merged into " +
+                        "the request body — use only what your provider documents.",
+                    style = MaterialTheme.typography.labelSmall, color = MutedDark,
+                )
                 Button(onClick = {
                     settings.deepSeekKey = key.trim()
                     settings.model = model.trim().ifBlank { "deepseek-chat" }
                     settings.baseUrl = baseUrl.trim().ifBlank { Settings.DEFAULT_BASE }
+                    settings.customHeaders = headers.trim()
+                    settings.extraBody = extraBody.trim()
                     baseUrl = settings.baseUrl
                     saved = true
                 }) { Text(if (saved) "Saved" else "Save") }
