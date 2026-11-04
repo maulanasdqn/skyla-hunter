@@ -1,10 +1,11 @@
 package dev.reforge.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Terminal
@@ -26,9 +27,10 @@ val reforgeTools = listOf(
     ToolDef("Chroot", "System info, disk usage, status", Icons.Filled.Layers, Routes.CHROOT),
     ToolDef("MAC Changer", "Spoof / randomize interface MAC", Icons.Filled.Shuffle, Routes.MAC),
     ToolDef("Kali Services", "ssh, apache, postgresql, mariadb", Icons.Filled.Dns, Routes.SERVICES),
-    ToolDef("Recon / Scan", "rustscan, nmap, masscan, whatweb", Icons.Filled.Radar),
-    ToolDef("OSINT", "spiderfoot, amass, theHarvester, sherlock", Icons.Filled.TravelExplore),
-    ToolDef("Web", "nikto, ffuf, feroxbuster, sqlmap, wpscan", Icons.Filled.Language),
-    ToolDef("Passwords", "hydra, john, hashcat, medusa", Icons.Filled.Key),
+    ToolDef("Recon / Scan", "nmap, rustscan, whatweb, wafw00f", Icons.Filled.Radar, "category/recon"),
+    ToolDef("Web", "nikto, ffuf, feroxbuster, sqlmap, wpscan", Icons.Filled.Language, "category/web"),
+    ToolDef("OSINT", "theHarvester, subfinder, sherlock, whois", Icons.Filled.TravelExplore, "category/osint"),
+    ToolDef("Exploits", "searchsploit — Exploit-DB search", Icons.Filled.BugReport, "category/exploits"),
+    ToolDef("Payloads", "msfvenom payload generator", Icons.Filled.Memory, Routes.PAYLOAD),
     ToolDef("DuckHunter (HID)", "BadUSB keystroke injection via /dev/hidg0", Icons.Filled.Usb, Routes.HID),
 )

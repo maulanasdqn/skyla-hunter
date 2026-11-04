@@ -20,10 +20,12 @@ import androidx.navigation.compose.rememberNavController
 import dev.reforge.ui.ReforgeBottomBar
 import dev.reforge.ui.Routes
 import dev.reforge.ui.screens.AgentScreen
+import dev.reforge.ui.screens.CategoryScreen
 import dev.reforge.ui.screens.ChrootScreen
 import dev.reforge.ui.screens.DashboardScreen
 import dev.reforge.ui.screens.HidScreen
 import dev.reforge.ui.screens.MacScreen
+import dev.reforge.ui.screens.PayloadScreen
 import dev.reforge.ui.screens.ServicesScreen
 import dev.reforge.ui.screens.SettingsScreen
 import dev.reforge.ui.screens.TerminalScreen
@@ -82,6 +84,15 @@ fun ReforgeApp() {
                 }
                 composable(Routes.HID) {
                     HidScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.PAYLOAD) {
+                    PayloadScreen(onBack = { nav.popBackStack() })
+                }
+                composable("category/{id}") { entry ->
+                    CategoryScreen(
+                        categoryId = entry.arguments?.getString("id") ?: "recon",
+                        onBack = { nav.popBackStack() },
+                    )
                 }
             }
         }
