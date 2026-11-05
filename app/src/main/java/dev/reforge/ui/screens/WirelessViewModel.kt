@@ -152,25 +152,11 @@ class WirelessViewModel : ViewModel() {
         }
     }
 
-    private fun parseCsv(csv: String): List<ApInfo> {
-        val out = ArrayList<ApInfo>()
-        for (raw in csv.lineSequence()) {
-            val line = raw.trim()
-            if (line.isEmpty()) continue
-            if (line.startsWith("BSSID")) continue
-            if (line.startsWith("Station MAC")) break // station section — stop
-            val c = line.split(",").map { it.trim() }
-            if (c.size < 14) continue
-            val bssid = c[0]
-            if (!bssid.contains(":")) continue
-            val channel = c[3]
-            val enc = c[5].ifBlank { "OPN" }
-            val power = c[8].toIntOrNull() ?: -100
-            val essid = c[13].ifBlank { "<hidden>" }
-            out.add(ApInfo(bssid, essid, channel, power, enc))
-        }
-        return out.sortedByDescending { it.power } // strongest first
-    }
+    // Parsing lives in the Rust native core (skyla_core) via UniFFI; see
+    // rust/src/wifi.rs. Returns APs sorted by signal, strongest first.
+    private fun parseCsv(csv: String): List<ApInfo> =
+        uniffi.skyla_core.parseAirodumpCsv(csv)
+            .map { ApInfo(it.bssid, it.essid, it.channel, it.power, it.enc) }
 
     companion object {
         // Prints "<iface> <driver> <mode>" for the first external wlan (not wlan0).

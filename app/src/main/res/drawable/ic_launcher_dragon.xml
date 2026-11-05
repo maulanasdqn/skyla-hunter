@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NetHunter dragon, line-art style, to match the Arcticons icon pack the user
+  themes their launcher with (so Reforge stops standing out as a filled icon).
+  Source glyph: Arcticons "nethunter" (github.com/Arcticons-Team/Arcticons,
+  free icon set), converted SVG -> VectorDrawable. The 48-unit artwork is
+  scaled 1.5x and offset by 18 so it lands inside the adaptive-icon safe zone
+  (18..90 of 108) and the outer ring isn't clipped by the launcher mask.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.5"
+        android:scaleY="1.5"
+        android:translateX="18"
+        android:translateY="18">
+        <path
+            android:pathData="M40.6663,37.5791a40.4205,40.4205,0,0,0-33.3335,0"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M28.6842,34.2531c0-4.2662-7.8369-6.1727-7.8369-10.7148,0-2.4673,1.514-2.6355,3.5888-2.6355s5.0467,1.9626,6.3925,2.86c0,0-.1121,2.0187.729,2.6916s5.4392,2.243,8.1308,5.6075l3.14-2.0748s-3.5888-.2244-5.4953-2.6075l.729-.7009L35.3707,22.08l-2.6916.5607a11.4559,11.4559,0,0,0-10.444-6.1121c-7.0233,0-6.6266,8.8029-5.93,10.71.694,1.8995,4.15,5.0327,4.15,6.8983"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M24,2.5 A21.5,21.5 0 1 0 24,45.5 A21.5,21.5 0 1 0 24,2.5 Z"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M34.9501,25.0804L35.7912,25.9215"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M33.8006,21.015c-6.8412-9.3645-13.6823-10.514-18.2243-11.58"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M25.5505,16.9481A8.7582,8.7582,0,0,0,24,14.5664"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M22.2351,16.529A4.8355,4.8355,0,0,0,20.1183,15.38"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M19.1916,17.2554a4.62,4.62,0,0,0-2.41.2549"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M16.7819,20.033a4.1942,4.1942,0,0,0-1.9907.8137"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M16,23.2508a1.8207,1.8207,0,0,0-1.2091,1.353"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="1" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>

@@ -64,8 +64,8 @@ fun HydraScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
     var target by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("root") }
     var wordlist by remember { mutableStateOf(DEFAULT_WORDLIST) }
-    val preview = "hydra -l ${user.ifBlank { "<user>" }} -P $wordlist -t 4 -f " +
-        "$service://${target.ifBlank { "<target>" }}"
+    // Command built by the Rust core (skyla_core) so preview and run can't drift.
+    val preview = uniffi.skyla_core.hydraCmd(user, wordlist, service, target)
     val listState = rememberLazyListState()
 
     LaunchedEffect(vm.lines.size, vm.lines.lastOrNull()?.text?.length) {
@@ -142,7 +142,7 @@ fun HydraScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
             } else {
                 Button(
                     onClick = {
-                        vm.run("hydra -l ${user.trim()} -P ${wordlist.trim()} -t 4 -f $service://${target.trim()}")
+                        vm.run(uniffi.skyla_core.hydraCmd(user.trim(), wordlist.trim(), service, target.trim()))
                     },
                     enabled = target.isNotBlank() && user.isNotBlank() && wordlist.isNotBlank(),
                     modifier = Modifier.fillMaxWidth(),

