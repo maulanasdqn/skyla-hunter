@@ -153,21 +153,41 @@ Not yet implemented (hardware- or scope-gated):
   (AR9271 / RT3070-class).
 - Bluetooth Arsenal, Pineapple connector, USB Arsenal gadget configs.
 
-Known device caveats for the Redmi Note 10 Pro (`sweet`, kernel 4.14 openela):
+Known device caveats for the Redmi Note 10 Pro (`sweet`):
 
 - The internal Wi-Fi (QCA6391) **does not support monitor mode** — wireless
   features need a USB OTG adapter.
-- The kernel is built **without `CONFIG_USER_NS` and `CONFIG_PID_NS`**, so
-  namespaces that tools like proot / bubblewrap / podman rely on are
-  unavailable. UTS and network namespaces do work. Mount namespaces are
-  present but do not isolate reliably (mounts propagate back into Android's
-  table), so the app is documented and tested against a plain `su → chroot`
-  path rather than a namespace sandbox.
+- **Stock kernel had no `CONFIG_USER_NS` / `CONFIG_PID_NS`.** A rebuilt kernel
+  with those enabled now runs on the device (see below); the namespace-mode
+  section documents what each one gives you.
+- **Mount namespaces do not isolate on this kernel.** `/` is a `shared` mount
+  and `mount --make-r*` inside a namespace still propagates back to Android's
+  mount table. This is a kernel/Android limitation, not a config flag: it also
+  makes `bwrap` fail with `Failed to make / slave: Invalid argument`. Work with
+  explicit mounts plus a teardown trap, or accept host-visible mounts.
 
-Kali binaries still run **natively** — ARM64 code is executed directly by the
-kernel with full capabilities, not through qemu or proot. See `kali-native`
-in the Skyla Tools Magisk module for a launcher that adds a private hostname
-(UTS namespace) and an optional private network stack.
+## Native namespace kernel
+
+The stock LineageOS/sweet kernel ships `CONFIG_USER_NS` and `CONFIG_PID_NS`
+disabled, which rules out proot, bubblewrap and anything container-shaped.
+A rebuilt boot image with them enabled is produced by
+`~/Downloads/nethunter-sweet/build4.sh` (in a container, same flow as the
+original NetHunter build) and repacked by `repack.sh`.
+
+Resulting capability on the flashed kernel — verified on-device:
+
+| namespace | stock | rebuilt |
+|---|---|---|
+| user (`-U`) | ✗ | ✅ `max_user_namespaces=29019` |
+| pid (`-p`) | ✗ | ✅ isolated `pid1`, 5 procs vs 865 |
+| ipc (`-i`) | ✗ | ✅ |
+| uts / net / mnt / cgroup | ✅ | ✅ |
+
+Isolation actually observed: `kali-native --isolated` reports
+`pid1=kali-native procs=5`, while the host keeps `pid1=init procs=865`.
+
+Kali binaries still run **natively** — ARM64 code executed directly by the
+kernel with full capabilities, not through qemu or proot.
 
 ---
 
