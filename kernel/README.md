@@ -27,6 +27,14 @@ option. These only switch on options in the same 4.14 build, the same way
 All are gated by options already `=y` (`CGROUPS`, `NETFILTER`, …), so nothing
 exotic is pulled in. `POSIX_MQUEUE_SYSCTL` auto-enables with `POSIX_MQUEUE`.
 
+> **Note on the network options** (`BRIDGE_NETFILTER`, `XT_MATCH_ADDRTYPE`,
+> `VXLAN`, `MACVLAN`): these were added for netavark *bridge* NAT, but bridge
+> networking turned out to be blocked higher up by Android `netd` (unwritable
+> filter table + policy routing + FORWARD drops — see
+> [`../magisk/podman/README.md`](../magisk/podman/README.md)), so they don't
+> actually enable bridging here. They're harmless and kept; container
+> networking uses **slirp4netns** (userspace, needs no kernel forwarding).
+
 - Files: [`nethunter.config`](nethunter.config) is the **complete** build
   fragment used (Wi-Fi + BT + namespaces + these container options);
   [`container-options.diff`](container-options.diff) is the unified diff of the
