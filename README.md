@@ -153,8 +153,21 @@ Not yet implemented (hardware- or scope-gated):
   (AR9271 / RT3070-class).
 - Bluetooth Arsenal, Pineapple connector, USB Arsenal gadget configs.
 
-Known device caveat: the Redmi Note 10 Pro's internal Wi-Fi (`sweet`, QCA6391)
-**does not support monitor mode** — wireless features need a USB OTG adapter.
+Known device caveats for the Redmi Note 10 Pro (`sweet`, kernel 4.14 openela):
+
+- The internal Wi-Fi (QCA6391) **does not support monitor mode** — wireless
+  features need a USB OTG adapter.
+- The kernel is built **without `CONFIG_USER_NS` and `CONFIG_PID_NS`**, so
+  namespaces that tools like proot / bubblewrap / podman rely on are
+  unavailable. UTS and network namespaces do work. Mount namespaces are
+  present but do not isolate reliably (mounts propagate back into Android's
+  table), so the app is documented and tested against a plain `su → chroot`
+  path rather than a namespace sandbox.
+
+Kali binaries still run **natively** — ARM64 code is executed directly by the
+kernel with full capabilities, not through qemu or proot. See `kali-native`
+in the Skyla Tools Magisk module for a launcher that adds a private hostname
+(UTS namespace) and an optional private network stack.
 
 ---
 
