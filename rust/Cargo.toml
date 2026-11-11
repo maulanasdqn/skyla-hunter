@@ -18,6 +18,9 @@ path = "uniffi-bindgen.rs"
 
 [dependencies]
 uniffi = { version = "0.29", features = ["cli"] }
+# Lightweight regex for the recon command denylist. regex-lite has no Unicode
+# tables, keeping the .so small; the denylist patterns are plain ASCII.
+regex-lite = "0.1"
 
 [profile.release]
 opt-level = "z"

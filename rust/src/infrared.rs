@@ -30,7 +30,7 @@ pub fn ir_nec(address: i32, command: i32) -> Vec<i32> {
     let mut out = Vec::with_capacity(68);
     out.push(9000);
     out.push(4500);
-    let mut byte = |b: i32, out: &mut Vec<i32>| {
+    let byte = |b: i32, out: &mut Vec<i32>| {
         for i in 0..8 {
             out.push(560);
             out.push(if (b >> i) & 1 == 1 { 1690 } else { 560 });
@@ -50,7 +50,7 @@ pub fn ir_samsung(address16: i32, command: i32) -> Vec<i32> {
     let mut out = Vec::with_capacity(76);
     out.push(4500);
     out.push(4500);
-    let mut bits = |value: i32, n: i32, out: &mut Vec<i32>| {
+    let bits = |value: i32, n: i32, out: &mut Vec<i32>| {
         for i in 0..n {
             out.push(560);
             out.push(if (value >> i) & 1 == 1 { 1690 } else { 560 });
@@ -69,7 +69,7 @@ pub fn ir_sony12(command: i32, device: i32) -> Vec<i32> {
     let mut out = Vec::with_capacity(28);
     out.push(2400);
     out.push(600); // header
-    let mut bits = |value: i32, n: i32, out: &mut Vec<i32>| {
+    let bits = |value: i32, n: i32, out: &mut Vec<i32>| {
         for i in 0..n {
             out.push(if (value >> i) & 1 == 1 { 1200 } else { 600 });
             out.push(600);

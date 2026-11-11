@@ -67,30 +67,12 @@ class ReconAgent(
         - Read each result, then decide the next step. Summarize findings in concise markdown.
     """.trimIndent()
 
-    // Denylist of clearly destructive / dangerous patterns. Everything else is
-    // allowed (this is the user's own authorized device). Guards against a
+    // The destructive-command denylist and the known-tool detection now live in
+    // the Rust native core (rust/src/recon.rs), reached through UniFFI, so the
+    // security-critical patterns are unit-tested and shared. Guards against a
     // malicious scan target injecting a destructive command into the loop.
-    private val denyPatterns = listOf(
-        Regex("""\brm\s+-\w*[rf]"""), Regex("""\bdd\b[^|]*\bof="""), Regex("""\bmkfs\b"""),
-        Regex("""\bshred\b"""), Regex("""\bfdisk\b"""), Regex("""\bparted\b"""),
-        Regex("""\bwipefs\b"""), Regex("""\bmkswap\b"""),
-        Regex("""\b(reboot|shutdown|poweroff|halt)\b"""),
-        Regex(""">\s*/dev/(sd|block|mmc|null/)"""), Regex("""\bof=/dev/"""),
-        Regex(""":\s*\(\s*\)\s*\{"""), // fork bomb
-        Regex("""\buserdel\b"""), Regex("""\b(passwd|chpasswd)\b"""),
-        Regex("""\bchmod\s+-R\s+777\s+/"""), Regex("""\bmv\s+/\s"""),
-    )
+    private fun isDangerous(cmd: String): Boolean = uniffi.skyla_core.commandIsDangerous(cmd)
 
-    private fun isDangerous(cmd: String): Boolean = denyPatterns.any { it.containsMatchIn(cmd) }
-
-    // Recon tools recognized for the "tools used" run summary.
-    private val knownTools = listOf(
-        "rustscan", "nmap", "masscan", "subfinder", "amass", "sublist3r", "whatweb",
-        "dnsenum", "dnsrecon", "dig", "host", "whois", "theHarvester", "wafw00f",
-        "nikto", "feroxbuster", "ffuf", "gobuster", "sherlock", "holehe", "maigret",
-        "phoneinfoga", "exiftool", "socialscan", "finalrecon",
-        "fierce", "dnstwist", "nbtscan", "dmitry", "curl", "wpscan",
-    )
     private val usedTools = LinkedHashSet<String>()
 
     private fun emitRunInfo(emit: (AgentEvent) -> Unit) {
@@ -183,9 +165,7 @@ class ReconAgent(
             }
             emit(AgentEvent(AgentEvent.Kind.ERROR, "Approved by you — running: $command"))
         }
-        knownTools.forEach { t ->
-            if (Regex("\\b${Regex.escape(t)}\\b").containsMatchIn(command)) usedTools.add(t)
-        }
+        usedTools.addAll(uniffi.skyla_core.detectTools(command))
         emit(AgentEvent(AgentEvent.Kind.COMMAND, command))
         var any = false
         val out = RootShell.chrootStream(command) { chunk ->
@@ -294,12 +274,9 @@ class ReconAgent(
         return msg
     }
 
-    /** Parse "Key: Value" lines into header pairs; blank/invalid lines ignored. */
+    /** Parse "Key: Value" lines into header pairs (native core, rust/src/recon.rs). */
     private fun parseHeaders(raw: String): List<Pair<String, String>> =
-        raw.lineSequence().mapNotNull { line ->
-            val i = line.indexOf(':')
-            if (i <= 0) null else line.substring(0, i).trim() to line.substring(i + 1).trim()
-        }.filter { it.first.isNotEmpty() && it.second.isNotEmpty() }.toList()
+        uniffi.skyla_core.parseHeaders(raw).map { it.name to it.value }
 
     private fun toolsSpec(): JSONArray {
         val execChroot = JSONObject().put("type", "function").put(

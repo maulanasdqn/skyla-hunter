@@ -7,6 +7,7 @@
 //! - [`markdown`] — Markdown -> structured block model (Kotlin renders it)
 //! - [`wifi`]     — airodump-ng CSV parser
 //! - [`commands`] — builders for parameterised tool commands (msfvenom, hydra)
+//! - [`recon`]    — recon-agent command denylist, tool detection, header parsing
 
 uniffi::setup_scaffolding!();
 
@@ -14,6 +15,7 @@ mod commands;
 mod ducky;
 mod infrared;
 mod markdown;
+mod recon;
 mod wifi;
 
 /// Compile Ducky Script into a bash script that writes USB-HID boot-keyboard
