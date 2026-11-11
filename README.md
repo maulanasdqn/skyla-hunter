@@ -191,6 +191,8 @@ kernel with full capabilities, not through qemu or proot.
 
 Untuk detail lengkap proses rebuild kernel, angka pengukuran, bukti isolasi, dan
 batasan yang tersisa, lihat **[KERNEL-NATIVE.md](KERNEL-NATIVE.md)**.
+Rencana perbaikan bwrap/podman tanpa rebuild kernel ada di
+**[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md)**.
 
 ---
 

@@ -17,7 +17,7 @@ dokumen ini hasil pengukuran pada 11 Nov 2026.
 | `CONFIG_PID_NS` (`unshare -p`) | ❌ | ✅ isolasi nyata |
 | `CONFIG_IPC_NS` (`unshare -i`) | ❌ | ✅ |
 | uts / net / mnt / cgroup | ✅ | ✅ |
-| Mount namespace benar-benar isolasi | ❌ | ❌ (lihat §7) |
+| Mount namespace bisa isolasi | ❌ (toybox) | ✅ dengan `--make-rprivate` (lihat §7) |
 | Eksekusi binary ARM64 | native | native |
 
 Kernel yang sekarang jalan di device:
@@ -290,48 +290,70 @@ namespace tidak bisa diandalkan untuk membersihkannya (§7).
 
 ---
 
-## 7. Batasan yang **tidak** beres dengan rebuild kernel ini
+## 7. Mount namespace: **bisa** diisolasi (koreksi)
 
-### Mount namespace tidak mengisolasi
+Bagian ini awalnya ditulis sebagai batasan ("mount namespace tidak mengisolasi").
+**Itu keliru** — investigasi lanjutan membuktikan mount namespace berfungsi,
+dan penyebab kebocoran ada di lapisan pengguna, bukan kernel. Detail lengkap di
+[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md).
 
-`/` di Android adalah mount `shared` (`shared:1`). Memanggil `mount --make-rslave`
-/ `--make-rprivate` di dalam mount namespace tetap mempropagasi mount kembali ke
-tabel mount Android. Diuji dengan beberapa kombinasi, semuanya bocor:
+Pengukuran ulang dengan penanda path unik:
 
 | percobaan | hasil |
 |---|---|
-| `unshare -m --fork` | LEAKED |
-| `unshare -m` + `--make-rslave /` | LEAKED |
-| `unshare -m` + `--make-rprivate /` | LEAKED (propagation jadi `private`, tetap bocor) |
+| `unshare -m` saja, tanpa ubah propagation | LEAKED |
+| `unshare -m` + `mount --make-rprivate /` | **ISOLATED** |
+| `unshare -m` + `mount --make-rslave /` | **ISOLATED** |
+| `unshare -U -r -m` (map root) + `--make-rprivate /` | **ISOLATED**, `CapEff=ffffffffff` |
 
-Efek samping yang pernah terjadi: `mount -t proc proc /proc` di dalam PID
-namespace **menimpa `/proc` host** sampai kosong, dan semua eksekusi binary gagal
-(`unable to stat either "/proc/self/exe"`). Pemulihannya hanya lewat
-`adb reboot` — `su`, `mount`, `ls` semuanya tidak bisa jalan karena butuh `/proc`.
+Penyebab kegagalan yang sempat disalahartikan sebagai bug kernel:
+
+1. `mount` **toybox** berhenti di `mount: bad /etc/fstab` sebelum sampai ke
+   syscall — sehingga `--make-rprivate` tidak pernah dijalankan.
+2. Di dalam chroot, `bash` memanggil `/system/bin/unshare` (binari Android),
+   yang tidak bisa dieksekusi: `cannot execute: required file not found`.
+3. `unshare` util-linux 2.42.4 mengembalikan `EPERM` untuk `CLONE_NEWUSER` di
+   kernel 4.14 ini, sementara `unshare` toybox berhasil.
+4. `unshare -U` tanpa `-r` membuat `CapEff=0000000000000000`, semua `mount`
+   mengembalikan `EPERM`.
+
+`fs/pnode.c` tidak perlu di-patch.
+
+### Insiden `/proc` host tertimpa
+
+Meski mount ns berfungsi, pernah terjadi: `mount -t proc proc /proc` di dalam
+PID namespace menimpa `/proc` host sampai kosong, lalu semua eksekusi binary
+gagal (`unable to stat either "/proc/self/exe"`). Pemulihannya hanya lewat
+`adb reboot` — `su`, `mount`, `ls` semuanya butuh `/proc`.
+
 Script sekarang selalu me-mount `/proc` ke **target chroot** (`$K/proc`), tidak
-pernah ke `/`, untuk menghindari ini.
+pernah ke `/`. Dengan launcher yang memakai mount namespace sungguhan
+(§ PATCH-PNODE-PLAN langkah 3), insiden ini tidak bisa terulang.
 
 ### Konsekuensi bubblewrap / podman
 
-`bwrap` gagal dengan:
+`bwrap` masih gagal, tapi bukan karena propagation di kernel:
 
 ```
-bwrap: Failed to make / slave: Invalid argument
+bwrap: Failed to make / slave: Invalid argument        (chroot langsung)
+bwrap: No permissions to create a new namespace        (dengan --unshare-user)
+bwrap: Can't read /proc/sys/kernel/overflowuid         (/proc tidak lengkap)
+cannot execute: required file not found                (PATH bocor ke /system/bin)
 ```
 
-Ini kegagalan **propagasi mount**, bukan kegagalan config namespace. Sudah diuji
-dengan `--unshare-uts`, `--unshare-uts --unshare-ipc`,
-`--unshare-uts --unshare-pid --proc /proc` — semuanya gagal di titik yang sama.
+Semuanya berasal dari lingkungan pemanggilan dan tool yang dipakai, bukan dari
+`fs/pnode.c`. Detail dan langkah perbaikannya di
+**[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md)**.
 
-Artinya `kali-native --check` yang menulis "proot/podman capable" itu benar soal
-**syarat namespace**, tapi untuk bwrap/podman secara praktis masih terhalang
-propagasi mount.
+### Langkah berikutnya
 
-### Langkah berikutnya (kalau mau)
+Tidak perlu rebuild kernel. Perbaikannya ada di launcher — lihat
+**[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md) §4**:
 
-Patch `fs/pnode.c` / `fs/namespace.c` supaya `MS_SLAVE` propagation berperilaku
-benar di namespace anak, lalu build ulang dengan flow yang sama (§4.3).
-Build makan waktu ~15 menit di mesin ini.
+1. jangan pakai `mount` toybox untuk propagation (pakai `busybox mount`)
+2. jangan biarkan PATH chroot menunjuk `/system/bin`
+3. buat mount ns di dalam user ns yang memetakan root (`unshare -U -r -m`)
+4. ganti `trap cleanup` di `kali-native` dengan mount namespace sungguhan
 
 ---
 
