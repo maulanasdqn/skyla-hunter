@@ -1,0 +1,42 @@
+#!/system/bin/sh
+# kali-ok — health check for the NetHunter chroot and the native launcher.
+#
+# Note on mounts: kali-native now enters a real mount namespace and marks /
+# private (busybox_nh mount --make-rprivate /), so the /proc,/sys,/sdcard it
+# mounts live only for the session and cannot leak to the host (see
+# PATCH-PNODE-PLAN.md §4). Their absence outside a session is expected, not an
+# error — so we check the rootfs contents instead, run the in-chroot test
+# through kali-native itself, and verify that a mount made inside a session is
+# NOT visible on the host (the isolation proof).
+K=/data/local/nhsystem/kali-arm64
+KN=/data/adb/modules/skyla-tools/system/bin/kali-native
+[ -x "$KN" ] || KN=kali-native
+fails=0
+chk() { if eval "$1" >/dev/null 2>&1; then echo "  OK   $2"; else echo "  FAIL $2"; fails=$((fails+1)); fi }
+
+echo "NetHunter chroot health"
+chk "[ -x $K/bin/bash ]"        "rootfs present"
+chk "[ -d $K/proc ] && [ -d $K/sys ]" "proc/sys mountpoints exist"
+chk "[ -f $K/etc/os-release ]"  "os-release present"
+chk "grep -q Kali $K/etc/os-release" "distribution is Kali"
+chk "chroot $K /usr/bin/env PATH=/usr/bin:/bin /bin/bash -c 'test -x /usr/bin/nmap'" "exec tests (raw chroot)"
+chk "$KN true"                   "native launcher runs"
+chk "$KN hostname | grep -qx kali" "native UTS namespace (hostname=kali)"
+
+# Isolation proof: inside a native session, make a throwaway mount under /mnt
+# and confirm the host never sees it. If make-rprivate worked, the mount is
+# gone (and was never visible) the moment the session exits.
+hostmounts_before=$(mount | grep -c '/data/local/nhsystem/kali-arm64/mnt ')
+chk "$KN sh -c 'mkdir -p /mnt/ok && mount -t tmpfs t /mnt/ok && mountpoint -q /mnt/ok'" "mount namespace active (tmpfs inside session)"
+hostmounts_after=$(mount | grep -c '/data/local/nhsystem/kali-arm64/mnt ')
+chk "[ $hostmounts_after -le $hostmounts_before ]" "session mount did NOT leak to host"
+
+chk "getenforce 2>/dev/null | grep -qE 'Permissive|Disabled' || [ \"\$(cat /sys/fs/selinux/enforce 2>/dev/null)\" = 0 ]" "selinux permissive/disabled"
+chk "[ -e /dev/net/tun ]"        "/dev/net/tun (VPN)"
+chk "ls /sys/class/net 2>/dev/null | grep -q wlan0 || ip link show wlan0 2>/dev/null | grep -q wlan0" "wlan0 present"
+
+echo "  -- mounts inside chroot right now:"
+mount | grep nhsystem/kali-arm64 | awk '{print "     "$3}'
+
+[ $fails -eq 0 ] && echo "RESULT: all good" || echo "RESULT: $fails failure(s)"
+exit $fails

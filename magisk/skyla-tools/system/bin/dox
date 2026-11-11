@@ -1,0 +1,83 @@
+#!/system/bin/sh
+# dox — OSINT / "doxing" multi-tool wrapper for NetHunter Kali chroot
+# usage:
+#   dox mail <email>        cek akun terdaftar dari email (holehe)
+#   dox user <username>     username di 3000+ situs (maigret)
+#   dox phone <+62xxx>      info nomor HP (PhoneInfoga)
+#   dox dom  <domain>       email/subdomain/host (theHarvester)
+#   dox exif <file>         metadata foto: GPS, kamera, tanggal (exiftool)
+#   dox whois <domain|ip>   whois
+#   dox ip   <ip|host>      DNS + PTR + whois ringkas
+#   dox all  <target>       mail|user|phone auto-detect lalu jalanin semua
+#   dox help
+K=/data/local/nhsystem/kali-arm64
+PATH_STR=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+OUT=$K/root/osint
+run() { chroot "$K" /usr/bin/env -i PATH=$PATH_STR HOME=/root TERM=${TERM:-xterm} LANG=C.UTF-8 "$@"; }
+mkdir -p "$OUT" 2>/dev/null
+
+mail()  { run holehe "$1" | grep -v -E '^\s*$'; }
+user()  { run maigret "$1" --timeout 10 --no-progressbar --no-color --report none; }
+phone() { run phoneinfoga scan -n "$1" 2>&1; }
+strip() { run sed -e 's/\x1b\[[0-9;]*m//g'; }
+dom()   { run theHarvester -d "$1" -b duckduckgo,crtsh,bing -l 300; }
+
+cmd="$1"; shift
+case "$cmd" in
+  mail|email)
+    [ -z "$1" ] && { echo "usage: dox mail <email>"; exit 1; }
+    mail "$1" ;;
+  user|username)
+    [ -z "$1" ] && { echo "usage: dox user <username>"; exit 1; }
+    user "$1" ;;
+  phone|hp|nomer)
+    [ -z "$1" ] && { echo "usage: dox phone +62812xxxx"; exit 1; }
+    echo "## INFO NOMOR: $1"
+    phone "$1" | strip | run grep -v -E '^[[:space:]]*URL:|^[[:space:]]*$' | head -40
+    echo
+    echo "## LINK CEK MANUAL"
+    phone "$1" | strip | run grep -oE 'https://www\.google\.com/search[^ ]+' | run grep -E 'facebook|instagram|twitter|linkedin' | head -4
+    ;;
+  dom|domain)
+    [ -z "$1" ] && { echo "usage: dox dom <domain>"; exit 1; }
+    dom "$1" ;;
+  exif)
+    [ -z "$1" ] && { echo "usage: dox exif <file>"; exit 1; }
+    f="$1"; case "$f" in /*) ;; *) f="/sdcard/$f";; esac
+    run exiftool "$f" ;;
+  whois)
+    [ -z "$1" ] && { echo "usage: dox whois <domain|ip>"; exit 1; }
+    run whois "$1" ;;
+  ip)
+    [ -z "$1" ] && { echo "usage: dox ip <ip|host>"; exit 1; }
+    echo "== DNS";   run dig +short "$1" A; run dig +short "$1" MX
+    echo "== PTR";   run dig +short -x "$1"
+    echo "== whois"; run whois "$1" 2>/dev/null | grep -i -E "orgname|country|netname|descr|inetnum" | head -8
+    ;;
+  all)
+    [ -z "$1" ] && { echo "usage: dox all <email|username|+628xx|domain>"; exit 1; }
+    t="$1"
+    isdom=0
+    case "$t" in
+      *@*)  echo "### EMAIL: $t"; mail "$t" ;;
+      +*|[0-9]*) echo "### PHONE: $t"; dox phone "$t" ;;
+      *.*)  isdom=1; echo "### DOMAIN: $t"; dom "$t" ;;
+    esac
+    echo
+    echo "### USERNAME: $t"
+    [ "$isdom" = "1" ] || user "$t"
+    ;;
+  *)
+    cat <<'EOF'
+dox — OSINT / doxing toolkit (NetHunter)
+  dox mail  <email>        akun terdaftar dari email (holehe)
+  dox user  <username>     username di 3000+ situs (maigret)
+  dox phone <+62xxx>       info nomor HP: operator, negara, format (PhoneInfoga)
+  dox dom   <domain>       email + subdomain + host (theHarvester)
+  dox exif  <file>         metadata foto: GPS/kamera/tanggal (exiftool)
+  dox whois <domain|ip>    whois
+  dox ip    <ip|host>      DNS + PTR + whois ringkas
+  dox all   <target>       auto-detect lalu jalanin semua yang relevan
+EOF
+    ;;
+esac

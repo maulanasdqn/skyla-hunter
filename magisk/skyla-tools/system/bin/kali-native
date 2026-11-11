@@ -1,0 +1,140 @@
+#!/system/bin/sh
+# kali-native — run Kali NetHunter natively on the kernel.
+#
+# Detects what this kernel supports and uses the strongest isolation available.
+# The rebuilt kernel (USER_NS+PID_NS+IPC_NS) enables real process isolation; the
+# stock one does not, hence the capability probe instead of hardcoded flags.
+#
+#   kali-native              interactive root shell in Kali
+#   kali-native <cmd...>     run one command
+#   kali-native --net        private network stack
+#   kali-native --isolated   private PID namespace (fresh pid1, own /proc)
+#   kali-native --check      report capability + mode that would be used
+#
+# MOUNT ISOLATION (see PATCH-PNODE-PLAN.md §4): every launch now enters a real
+# mount namespace (`unshare -m`) and immediately marks / private with
+#   busybox_nh mount --make-rprivate /
+# so the /proc,/sys,/dev/pts,/sdcard it mounts for the session cannot propagate
+# back to the host and disappear automatically when the session exits. Toybox
+# `mount` reads /etc/fstab and fails there (it does not exist under Magisk), so
+# busybox_nh is used for the mount operations. The cleanup trap below is kept
+# only as a belt-and-suspenders fallback for the (stock-kernel) case where
+# make-rprivate is unavailable.
+
+K=/data/local/nhsystem/kali-arm64
+KALI_PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Prefer busybox_nh for mounts: toybox mount dies on /etc/fstab, including for
+# --make-rprivate. Fall back to plain mount if busybox_nh is missing.
+BB=/system/xbin/busybox_nh
+if [ -x "$BB" ]; then MOUNT="$BB mount"; else MOUNT="mount"; fi
+
+SELF=""
+for c in "$0" /data/adb/modules/skyla-tools/system/bin/kali-native \
+         /system/bin/kali-native /data/local/tmp/kali-native; do
+  [ -n "$c" ] && [ -f "$c" ] && { SELF="$c"; break; }
+done
+[ -n "$SELF" ] || { echo "kali-native: cannot locate itself" >&2; exit 1; }
+
+cap_user() { unshare -U true >/dev/null 2>&1 && echo yes || echo no; }
+cap_pid()  { unshare -p -f true >/dev/null 2>&1 && echo yes || echo no; }
+cap_ipc()  { unshare -i true >/dev/null 2>&1 && echo yes || echo no; }
+cap_mnt()  { unshare -m true >/dev/null 2>&1 && echo yes || echo no; }
+
+status() {
+  up=$(cap_user); pp=$(cap_pid); ip=$(cap_ipc); mp=$(cap_mnt)
+  printf '%-12s %s\n' "kernel"   "$(uname -r)"
+  printf '%-12s %s\n' "user_ns"  "$up"
+  printf '%-12s %s\n' "pid_ns"   "$pp"
+  printf '%-12s %s\n' "ipc_ns"   "$ip"
+  printf '%-12s %s\n' "mnt_ns"   "$mp"
+  printf '%-12s %s\n' "uts_ns"   "$(unshare -u true >/dev/null 2>&1 && echo yes || echo no)"
+  printf '%-12s %s\n' "net_ns"   "$(unshare -n true >/dev/null 2>&1 && echo yes || echo no)"
+  printf '%-12s %s\n' "seccomp"  "$(grep -m1 Seccomp /proc/self/status | cut -f2 | tr -d '\t')"
+  printf '%-12s %s\n' "cap_eff"  "$(grep -m1 CapEff /proc/self/status | cut -f2 | tr -d '\t')"
+  printf '%-12s %s\n' "chroot"   "$(test -x "$K/bin/bash" && echo ready || echo missing)"
+  printf '%-12s %s\n' "packages" "$(chroot "$K" /usr/bin/env PATH=/usr/bin:/bin:/usr/sbin:/sbin dpkg -l 2>/dev/null | grep -c '^ii')"
+  if [ "$pp" = yes ] && [ "$mp" = yes ]; then
+    printf '%-12s %s\n' "mode" "full — mount+pid+uts namespaces, isolated mounts"
+  elif [ "$mp" = yes ]; then
+    printf '%-12s %s\n' "mode" "mount-isolated — chroot+uts+mnt (flash the ns kernel for pid)"
+  else
+    printf '%-12s %s\n' "mode" "basic — chroot only"
+  fi
+}
+
+# ---- inside the namespace -------------------------------------------------
+if [ "${1:-}" = "__inner" ]; then
+  shift
+  PRIV_NET="$1"; shift
+  ISOLATED_PID="$1"; shift
+  MODE="$1"; shift
+
+  hostname kali 2>/dev/null
+  [ "$PRIV_NET" = "1" ] && ip link set lo up 2>/dev/null
+
+  # Make / private FIRST so nothing we mount below leaks to the host. This is
+  # the fix from PATCH-PNODE-PLAN.md §4: with a private mount namespace the
+  # session's mounts vanish on exit on their own.
+  rpriv=0
+  $MOUNT --make-rprivate / 2>/dev/null && rpriv=1
+
+  made_proc=0; made_sys=0; made_pts=0; made_sd=0
+  cleanup() {
+    # Only needed when make-rprivate failed (mounts could otherwise leak).
+    [ "$rpriv" = 1 ] && return
+    [ "$made_sd"  = 1 ] && umount "$K/sdcard"    2>/dev/null
+    [ "$made_pts" = 1 ] && umount "$K/dev/pts"   2>/dev/null
+    [ "$made_sys" = 1 ] && umount "$K/sys"       2>/dev/null
+    [ "$made_proc" = 1 ] && umount "$K/proc"     2>/dev/null
+  }
+  trap cleanup EXIT INT TERM HUP
+
+  mountpoint -q "$K/proc"    || { $MOUNT -t proc  proc  "$K/proc"    2>/dev/null && made_proc=1; }
+  # In a PID namespace the chroot's /proc must be (re)mounted from inside the
+  # new namespace, otherwise it keeps showing the host's process list.
+  if [ "$ISOLATED_PID" = "1" ]; then
+    umount "$K/proc" 2>/dev/null
+    $MOUNT -t proc proc "$K/proc" 2>/dev/null && made_proc=1
+  fi
+  mountpoint -q "$K/sys"     || { $MOUNT -t sysfs sysfs "$K/sys"     2>/dev/null && made_sys=1;  }
+  mountpoint -q "$K/dev/pts" || { mkdir -p "$K/dev/pts"; $MOUNT -t devpts devpts "$K/dev/pts" 2>/dev/null && made_pts=1; }
+  mountpoint -q "$K/sdcard"  || { $MOUNT -o bind /storage/emulated/0 "$K/sdcard" 2>/dev/null && made_sd=1; }
+
+  [ "${KALI_NATIVE_QUIET:-0}" = "1" ] || \
+    echo "[kali-native] native arm64 · $MODE · priv-mnt=$rpriv · host=$(hostname) · kernel $(uname -r)" >&2
+  chroot "$K" /usr/bin/env -i \
+    PATH="$KALI_PATH" HOME=/root TERM="${TERM:-xterm-256color}" \
+    LANG=C.UTF-8 LC_ALL=C.UTF-8 USER=root HOSTNAME=kali "$@"
+  exit $?
+fi
+
+# ---- entry points ---------------------------------------------------------
+# -m (mount) is always added so make-rprivate has a private namespace to work
+# in; it is supported even on the stock kernel. -p (pid) is only added when the
+# kernel actually has PID_NS, otherwise unshare would fail outright.
+case "${1:-}" in
+  --check|-c) status ;;
+
+  --isolated|-i)
+    shift
+    if [ "$(cap_pid)" = yes ]; then
+      # -m (mount) -p (pid) -u (uts) -f (fork). Toybox has no --mount-proc, so
+      # the inner handler mounts the chroot's own /proc for a fresh pid1 view.
+      exec unshare -mupf "$SELF" __inner 0 1 "chroot+uts+pid+mnt" "$@"
+    fi
+    exec unshare -mu --fork "$SELF" __inner 0 0 "chroot+uts+mnt" "$@" ;;
+
+  --net|-n)
+    shift
+    if [ "$(cap_pid)" = yes ]; then
+      exec unshare -munp --fork "$SELF" __inner 1 1 "chroot+uts+pid+mnt+net" "$@"
+    fi
+    exec unshare -mun --fork "$SELF" __inner 1 0 "chroot+uts+mnt+net" "$@" ;;
+
+  *)
+    if [ "$(cap_pid)" = yes ]; then
+      exec unshare -mup --fork "$SELF" __inner 0 1 "chroot+uts+pid+mnt" "$@"
+    fi
+    exec unshare -mu --fork "$SELF" __inner 0 0 "chroot+uts+mnt" "$@" ;;
+esac

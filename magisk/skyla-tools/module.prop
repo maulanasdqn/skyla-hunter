@@ -1,0 +1,6 @@
+id=skyla-tools
+name=Skyla Tools
+version=v1.0
+versionCode=1
+author=ms
+description=NetHunter helper commands: nh (chroot launcher), kali-native (namespace launcher), dox (OSINT), kali-ok (health check).

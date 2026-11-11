@@ -16,6 +16,17 @@ object RootShell {
     private const val KALI_PATH =
         "/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+    /**
+     * When installed, `kali-native` enters the chroot inside a private
+     * mount+pid+uts namespace and marks / rprivate, so per-session mounts
+     * (/proc,/sys,/dev/pts,/sdcard) stay isolated and tear down on exit
+     * (PATCH-PNODE-PLAN.md §4). We route through it when present and fall back
+     * to a raw chroot otherwise. Detected once per process.
+     */
+    private val nativeLauncher: Boolean by lazy {
+        root("command -v kali-native >/dev/null 2>&1 && echo yes").trim() == "yes"
+    }
+
     // Strips ANSI/VT escape sequences (SGR colors, cursor moves) so tool output
     // reads cleanly in the UI and doesn't waste LLM tokens on control codes.
     private val ansiEscape = Regex("\u001B[\\[\\]][0-9;?]*[ -/]*[@-~]|\u001B[@-Z\\\\-_]")
@@ -25,9 +36,14 @@ object RootShell {
 
     /** Run a command inside the Kali chroot as root. */
     fun chroot(cmd: String): String {
-        val inner = "chroot $CHROOT /usr/bin/env -i " +
-            "HOME=/root TERM=xterm LANG=C.UTF-8 PATH=$KALI_PATH " +
-            "/bin/bash -c ${singleQuote(cmd)}"
+        // kali-native sets its own `env -i` (PATH/HOME/TERM/LANG) inside the
+        // namespace, so the raw-chroot env line is only needed in the fallback.
+        val inner = if (nativeLauncher)
+            "KALI_NATIVE_QUIET=1 kali-native /bin/bash -c ${singleQuote(cmd)}"
+        else
+            "chroot $CHROOT /usr/bin/env -i " +
+                "HOME=/root TERM=xterm LANG=C.UTF-8 PATH=$KALI_PATH " +
+                "/bin/bash -c ${singleQuote(cmd)}"
         return exec(arrayOf("su", "-c", inner))
     }
 
@@ -64,24 +80,39 @@ object RootShell {
         // Stage the job script inside the chroot's own /tmp: Android's /tmp is
         // shell-owned (unwritable by root), /data/local/tmp isn't mounted into
         // the chroot, and /sdcard is noexec.
-        val jobPath = "/tmp/$tag"
-        currentTag = jobPath
-        // NOTE: keep this free of single quotes. The whole payload is wrapped in
-        // single quotes for the outer `bash -c`, so an inner ' — e.g. from a
-        // naively nested `script -q -c 'bash x'` — would close the quote early
-        // and leave bash running interactively (a raw prompt, no output).
-        // Running `script -q -c <prog> <outfile>` with the program path given
-        // unquoted is safe here: the path is ours and has no shell metacharacters.
+        // Path to the job script as seen *inside* the chroot. On the host it is
+        // $CHROOT/tmp/$tag — the chroot's /tmp is part of the rootfs, not a
+        // separate mount, so a file staged there from the host is visible inside.
+        val jobIn = "/tmp/$tag"
+        currentTag = jobIn
+        // NOTE: keep the payload free of single quotes. In the fallback branch
+        // the whole thing is wrapped in single quotes for the outer `bash -c`,
+        // so an inner ' — e.g. from a naively nested `script -q -c 'bash x'` —
+        // would close the quote early and leave bash interactive (no output).
+        // `script -q -c <prog> <outfile>` with the program path unquoted is safe:
+        // the path is ours and has no shell metacharacters.
         // Reap job scripts orphaned by a previous Stop/kill before staging this
         // one: when the parent su process is killed the trailing `rm -f` never
         // runs, and old scripts pile up under /tmp.
-        val inner = "rm -f /tmp/reforge_job_*.sh; " +
-            "echo $b64 | base64 -d > $jobPath; " +
-            "timeout $timeoutSec script -q -c bash\\ $jobPath /dev/null 2>&1; " +
-            "rm -f $jobPath"
-        val full = "chroot $CHROOT /usr/bin/env -i " +
-            "HOME=/root TERM=xterm LANG=C.UTF-8 PATH=$KALI_PATH " +
-            "/bin/bash -c ${singleQuote(inner)}"
+        val full = if (nativeLauncher) {
+            // Stage on the host (into the chroot's /tmp) BEFORE kali-native
+            // enters its namespace, then run it through the launcher's PTY.
+            // `timeout` wraps the whole namespace, so Stop/timeout kills the
+            // session and its isolated mounts vanish with it.
+            "rm -f $CHROOT/tmp/reforge_job_*.sh; " +
+                "echo $b64 | base64 -d > $CHROOT$jobIn; " +
+                "KALI_NATIVE_QUIET=1 timeout $timeoutSec " +
+                "kali-native script -q -c bash\\ $jobIn /dev/null 2>&1; " +
+                "rm -f $CHROOT$jobIn"
+        } else {
+            val inner = "rm -f /tmp/reforge_job_*.sh; " +
+                "echo $b64 | base64 -d > $jobIn; " +
+                "timeout $timeoutSec script -q -c bash\\ $jobIn /dev/null 2>&1; " +
+                "rm -f $jobIn"
+            "chroot $CHROOT /usr/bin/env -i " +
+                "HOME=/root TERM=xterm LANG=C.UTF-8 PATH=$KALI_PATH " +
+                "/bin/bash -c ${singleQuote(inner)}"
+        }
         val sb = StringBuilder()
         return try {
             // `script` allocates a PTY and would otherwise block waiting on the

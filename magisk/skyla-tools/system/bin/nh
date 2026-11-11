@@ -1,0 +1,19 @@
+#!/system/bin/sh
+# nh — NetHunter chroot quick launcher
+# usage: nh            -> interactive kali shell
+#        nh <command>  -> run command in kali
+K=/data/local/nhsystem/kali-arm64
+PATH_STR=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# ensure mounts exist (idempotent)
+for m in dev proc sys; do
+  mountpoint -q "$K/$m" || mount -o bind "/$m" "$K/$m" 2>/dev/null
+done
+mountpoint -q "$K/sdcard" || mount -o bind /storage/emulated/0 "$K/sdcard" 2>/dev/null
+[ -d "$K/dev/pts" ] && { mountpoint -q "$K/dev/pts" || mount -t devpts devpts "$K/dev/pts" 2>/dev/null; }
+
+if [ $# -eq 0 ]; then
+  exec chroot "$K" /usr/bin/env -i PATH=$PATH_STR HOME=/root TERM=$TERM USER=root LANG=C.UTF-8 /bin/bash -l
+else
+  exec chroot "$K" /usr/bin/env -i PATH=$PATH_STR HOME=/root TERM=${TERM:-xterm} USER=root LANG=C.UTF-8 "$@"
+fi
