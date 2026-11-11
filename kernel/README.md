@@ -1,5 +1,13 @@
 # Kernel config — container cgroup controllers
 
+> **Status: BUILT & FLASHED (11 Nov 2026).** The 4.14 kernel was rebuilt with
+> these two options and flashed to the device. Verified on the running kernel:
+> `zcat /proc/config.gz` shows `CONFIG_CGROUP_PIDS=y` and
+> `CONFIG_CGROUP_DEVICE=y`; `/sys/fs/cgroup/cgroup.controllers` now lists
+> `pids` (was `memory` only); `/proc/cgroups` shows `pids` and `devices`
+> enabled. `kali-ok` still passes 12/12 and bwrap still runs — no regression.
+> The built config matches `../kernel-config-container.txt` exactly.
+
 Config change to enable `podman`/`runc`/`crun` on the existing **4.14** kernel.
 This is **not** a version bump: the `sweet`/`sm6150` kernel is locked to the
 Qualcomm 4.14 BSP and is pre-GKI, so 5.x is not an option. This only switches on
