@@ -72,7 +72,11 @@ fun CategoryScreen(categoryId: String, onBack: () -> Unit, vm: RunnerViewModel =
     val listState = rememberLazyListState()
 
     androidx.compose.runtime.LaunchedEffect(vm.lines.size, vm.lines.lastOrNull()?.text?.length) {
-        if (vm.lines.isNotEmpty()) listState.animateScrollToItem(vm.lines.size - 1)
+        // scrollToItem (not animate) — animate re-triggers on every streamed
+        // chunk and the list never settles at the bottom.
+        if (vm.lines.isNotEmpty()) {
+            listState.scrollToItem(vm.lines.lastIndex)
+        }
     }
 
     Column(Modifier.fillMaxSize()) {

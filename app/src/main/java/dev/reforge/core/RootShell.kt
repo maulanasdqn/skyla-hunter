@@ -40,7 +40,15 @@ object RootShell {
     /** Kill the currently streaming chroot command (used by Stop). */
     fun cancelProc() {
         try { currentProc?.destroyForcibly() } catch (_: Exception) {}
-        currentTag?.let { tag -> try { root("pkill -f $tag") } catch (_: Exception) {} }
+        // pkill -f takes a regex: quote it so the path stays one argument.
+        currentTag?.let { tag ->
+            try {
+                root("pkill -f ${singleQuote(tag)}")
+                root("pkill -f ${singleQuote(tag.removePrefix("/tmp/"))}")
+            } catch (_: Exception) {}
+        }
+        currentProc = null
+        currentTag = null
     }
 
     /**
@@ -52,17 +60,36 @@ object RootShell {
      */
     fun chrootStream(cmd: String, timeoutSec: Int = 600, onChunk: (String) -> Unit): String {
         val b64 = Base64.encodeToString(cmd.toByteArray(), Base64.NO_WRAP)
-        val tag = ".reforge_job_${System.nanoTime()}.sh"
-        currentTag = tag
-        val inner = "echo $b64 | base64 -d > /tmp/$tag; " +
-            "timeout $timeoutSec script -qec 'bash /tmp/$tag' /dev/null 2>&1; " +
-            "rm -f /tmp/$tag"
+        val tag = "reforge_job_${System.nanoTime()}.sh"
+        // Stage the job script inside the chroot's own /tmp: Android's /tmp is
+        // shell-owned (unwritable by root), /data/local/tmp isn't mounted into
+        // the chroot, and /sdcard is noexec.
+        val jobPath = "/tmp/$tag"
+        currentTag = jobPath
+        // NOTE: keep this free of single quotes. The whole payload is wrapped in
+        // single quotes for the outer `bash -c`, so an inner ' — e.g. from a
+        // naively nested `script -q -c 'bash x'` — would close the quote early
+        // and leave bash running interactively (a raw prompt, no output).
+        // Running `script -q -c <prog> <outfile>` with the program path given
+        // unquoted is safe here: the path is ours and has no shell metacharacters.
+        // Reap job scripts orphaned by a previous Stop/kill before staging this
+        // one: when the parent su process is killed the trailing `rm -f` never
+        // runs, and old scripts pile up under /tmp.
+        val inner = "rm -f /tmp/reforge_job_*.sh; " +
+            "echo $b64 | base64 -d > $jobPath; " +
+            "timeout $timeoutSec script -q -c bash\\ $jobPath /dev/null 2>&1; " +
+            "rm -f $jobPath"
         val full = "chroot $CHROOT /usr/bin/env -i " +
             "HOME=/root TERM=xterm LANG=C.UTF-8 PATH=$KALI_PATH " +
             "/bin/bash -c ${singleQuote(inner)}"
         val sb = StringBuilder()
         return try {
-            val proc = ProcessBuilder("su", "-c", full).redirectErrorStream(true).start()
+            // `script` allocates a PTY and would otherwise block waiting on the
+            // parent's stdin; give the process an empty stdin so it can stream.
+            val proc = ProcessBuilder("su", "-c", full)
+                .redirectErrorStream(true)
+                .redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))
+                .start()
             currentProc = proc
             val reader = proc.inputStream.bufferedReader()
             val pending = StringBuilder()

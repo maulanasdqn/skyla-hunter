@@ -56,7 +56,7 @@ class ReconAgent(
         - exec_chroot(command): run a non-interactive command in the Kali chroot
           (rustscan, nmap, subfinder, amass, sublist3r, whatweb, dnsenum, dig, host,
           whois, theHarvester, wafw00f, nikto, feroxbuster, ffuf, sherlock, holehe,
-          finalrecon, fierce, dnstwist, curl).
+          maigret, phoneinfoga, exiftool, finalrecon, fierce, dnstwist, curl).
         - app_action(action, target, message): control the Reforge app.
           action="navigate" target in {home, agent, tools, settings};
           action="toast" message="...";
@@ -87,7 +87,8 @@ class ReconAgent(
     private val knownTools = listOf(
         "rustscan", "nmap", "masscan", "subfinder", "amass", "sublist3r", "whatweb",
         "dnsenum", "dnsrecon", "dig", "host", "whois", "theHarvester", "wafw00f",
-        "nikto", "feroxbuster", "ffuf", "gobuster", "sherlock", "holehe", "finalrecon",
+        "nikto", "feroxbuster", "ffuf", "gobuster", "sherlock", "holehe", "maigret",
+        "phoneinfoga", "exiftool", "socialscan", "finalrecon",
         "fierce", "dnstwist", "nbtscan", "dmitry", "curl", "wpscan",
     )
     private val usedTools = LinkedHashSet<String>()

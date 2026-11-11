@@ -28,23 +28,30 @@ class RunnerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun run(cmd: String) {
         if (cmd.isBlank() || busy) return
+        RootShell.cancelProc() // drop any stale job before starting a new one
         lines.add(TermLine(seq++, TermKind.COMMAND, cmd))
         outId = null
         busy = true
         job = viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                RootShell.chrootStream(cmd) { chunk ->
-                    viewModelScope.launch(Dispatchers.Main) { appendOut(chunk) }
+            try {
+                withContext(Dispatchers.IO) {
+                    RootShell.chrootStream(cmd) { chunk ->
+                        viewModelScope.launch(Dispatchers.Main) { appendOut(chunk) }
+                    }
                 }
+            } finally {
+                // Always release the button, even if the process died, was
+                // killed, or the coroutine was cancelled by Stop.
+                outId = null
+                busy = false
             }
-            outId = null
-            busy = false
         }
     }
 
     fun stop() {
         RootShell.cancelProc()
         job?.cancel()
+        job = null
         busy = false
         outId = null
         lines.add(TermLine(seq++, TermKind.INFO, "^C"))

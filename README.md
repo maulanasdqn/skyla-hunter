@@ -23,10 +23,10 @@ to them through a thin `su → chroot` bridge.
   reports.
 - 🖥️ **Terminal** — a real shell into the Kali chroot with live streaming,
   structured command/output, and ANSI stripped for clean rendering.
-- 🧰 **Tool runners** — curated, one-tap launchers for Recon, Web, OSINT and
-  Exploits categories (nmap, rustscan, whatweb, wafw00f, nikto, ffuf,
-  feroxbuster, sqlmap, wpscan, theHarvester, subfinder, dnsrecon, sherlock,
-  whois, searchsploit) with a live command preview.
+- 🧰 **Tool runners** — curated, one-tap launchers for Recon, Web, **OSINT-People**
+  (holehe, maigret, sherlock, phoneinfoga, exiftool), **OSINT-Domain**
+  (theHarvester, subfinder, dnsrecon, whois, dig) and Exploits (searchsploit),
+  with a live command preview.
 - 💣 **Payloads** — an `msfvenom` generator (Android/Linux/Windows/PHP/Python/
   Bash presets, LHOST/LPORT) that writes straight into the chroot.
 - 🔑 **Brute-force** — a `hydra` form for ssh/ftp/mysql/postgres/telnet/rdp/smb/vnc.
@@ -142,15 +142,19 @@ applicable laws.
 ## Status & roadmap
 
 Reforge already covers the core NetHunter surface (terminal, chroot, services,
-MAC, HID) **plus** the tool runners, payload generator, brute-force form and the
-AI agent that NetHunter's app doesn't have.
+MAC, HID, KeX desktop, wireless monitor/scan) **plus** the tool runners, payload
+generator, brute-force form and the AI agent that NetHunter's app doesn't have.
 
 Not yet implemented (hardware- or scope-gated):
 
-- **KeX** (VNC desktop) — needs a VNC server in the chroot and an embedded client.
-- **Wireless** (MANA, wifite, monitor-mode attacks) — needs a supported external
-  USB adapter (AR9271 / RT3070-class).
+- **Wireless attacks** (MANA, wifite, full handshake/deauth flow in-app) — the
+  monitor-mode scan and per-AP deauth/handshake capture are wired up, but
+  Wifite-class automation needs a supported external USB adapter
+  (AR9271 / RT3070-class).
 - Bluetooth Arsenal, Pineapple connector, USB Arsenal gadget configs.
+
+Known device caveat: the Redmi Note 10 Pro's internal Wi-Fi (`sweet`, QCA6391)
+**does not support monitor mode** — wireless features need a USB OTG adapter.
 
 ---
 

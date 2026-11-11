@@ -33,13 +33,49 @@ val toolCategories = listOf(
         ),
     ),
     ToolCategory(
-        "osint", "OSINT",
+        "osint", "OSINT — People",
+        listOf(
+            QuickTool(
+                "Email → accounts",
+                "holehe {t}",
+                "email",
+            ),
+            QuickTool(
+                "Username → 3000+ sites",
+                "maigret {t} --timeout 10 --no-progressbar --no-color",
+                "username",
+            ),
+            QuickTool(
+                "Username → sites (fast)",
+                "sherlock {t} --timeout 10 --print-found --no-color",
+                "username",
+            ),
+            QuickTool(
+                "Phone number",
+                "phoneinfoga scan -n {t}",
+                "+6281234567890",
+            ),
+            QuickTool(
+                "Photo metadata (GPS)",
+                "exiftool {t}",
+                "/sdcard/DCIM/Camera/photo.jpg",
+            ),
+            QuickTool(
+                "Social search links",
+                "echo 'facebook:'; echo 'https://www.facebook.com/search/top?q={t}'; echo 'instagram:'; echo 'https://www.instagram.com/{t}'; echo 'github:'; echo 'https://github.com/{t}'",
+                "name or username",
+            ),
+        ),
+    ),
+    ToolCategory(
+        "osintdom", "OSINT — Domain",
         listOf(
             QuickTool("theHarvester", "theHarvester -d {t} -b duckduckgo,bing,crtsh,otx", "domain"),
             QuickTool("subfinder", "subfinder -d {t} -silent", "domain"),
             QuickTool("dnsrecon", "dnsrecon -d {t}", "domain"),
-            QuickTool("sherlock", "sherlock {t} --timeout 10 --print-found", "username"),
             QuickTool("whois", "whois {t}", "domain or IP"),
+            QuickTool("dig — all records", "dig {t} ANY +noall +answer", "domain"),
+            QuickTool("IP → geo/whois", "whois {t} | grep -iE 'orgname|country|netname|descr|inetnum' | head -8", "IP"),
         ),
     ),
     ToolCategory(
