@@ -189,6 +189,9 @@ Isolation actually observed: `kali-native --isolated` reports
 Kali binaries still run **natively** — ARM64 code executed directly by the
 kernel with full capabilities, not through qemu or proot.
 
+Untuk detail lengkap proses rebuild kernel, angka pengukuran, bukti isolasi, dan
+batasan yang tersisa, lihat **[KERNEL-NATIVE.md](KERNEL-NATIVE.md)**.
+
 ---
 
 ## License
