@@ -344,3 +344,36 @@ Patch kernel hanya perlu dipertimbangkan bila ada bukti baru yang menunjuk ke
 yang gagal di (3). Bukan karena `fs/pnode.c`. Kalau bwrap dibutuhkan, opsi
 realistisnya: pakai versi bwrap yang lebih lama, atau pakai `proot` (tidak
 membuat namespace sendiri) di dalam namespace toybox yang sudah berjalan.
+
+---
+
+## 8. UPDATE (11 Nov 2026) — bwrap akhirnya berjalan
+
+Ditulis setelah menguji proot, bwrap, dan podman di device. **Tetap tanpa patch
+`fs/pnode.c`.**
+
+- **proot** — ❌ tidak bisa. Guest selalu `exited with status 182` (ptrace/exec
+  proot 5.4.0 tak kompatibel dengan kernel 4.14 OpenELA ini); bahkan `bash`/
+  `true` tidak jalan. Saran lama memakai proot dengan demikian gugur.
+
+- **bwrap** — ✅ **berjalan**, butuh dua perbaikan yang saling melengkapi:
+  1. **`kali-native` masuk via `pivot_root`, bukan `chroot`.** Rootfs Kali hanya
+     subtree direktori di partisi f2fs `/data`, bukan mount kelas-satu; `/` di
+     dalam chroot karena itu bukan mount, dan `pivot_root` (yang diwajibkan
+     bwrap) gagal `EINVAL`. `kali-native` kini `--rbind` rootfs ke dirinya
+     sendiri lalu `pivot_root` ke sana, sehingga `/` jadi mount sejati. Ada
+     fallback ke `chroot` kalau pivot gagal.
+  2. **bwrap di-patch EINVAL-tolerant** pada dua panggilan propagasi (`make /
+     slave` dan `make old root rprivate`) — kernel menolak perubahan propagasi
+     pada mount `/data`-backed (hanya tmpfs yang menerima). Aman karena
+     `kali-native` sudah membungkus dalam mount-ns private.
+
+  Terverifikasi: `uid=0`, `hostname=sandbox`, `pid1=2` dengan `/proc` terisolasi
+  sendiri, tanpa bocor ke host. Detail + build script: `magisk/bwrap/`.
+
+- **podman** — belum. Butuh runtime (crun/runc) + cgroup delegation di atas
+  bwrap; dukungan cgroup v2 di kernel 4.14 ini belum diverifikasi.
+
+Catatan: temuan ini juga mengoreksi dugaan di §1 bahwa penyebabnya `do_make_slave`
+— yang gagal justru `pivot_root` (butuh mount sejati) dan perubahan propagasi
+pada mount `/data`, keduanya di luar `fs/pnode.c`.

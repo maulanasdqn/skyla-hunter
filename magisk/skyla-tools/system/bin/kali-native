@@ -70,6 +70,9 @@ if [ "${1:-}" = "__inner" ]; then
   ISOLATED_PID="$1"; shift
   MODE="$1"; shift
 
+  # No command given -> interactive login shell.
+  [ "$#" -eq 0 ] && set -- /bin/bash -l
+
   hostname kali 2>/dev/null
   [ "$PRIV_NET" = "1" ] && ip link set lo up 2>/dev/null
 
@@ -103,6 +106,32 @@ if [ "${1:-}" = "__inner" ]; then
 
   [ "${KALI_NATIVE_QUIET:-0}" = "1" ] || \
     echo "[kali-native] native arm64 · $MODE · priv-mnt=$rpriv · host=$(hostname) · kernel $(uname -r)" >&2
+
+  # Enter the rootfs. Prefer pivot_root so / becomes a FIRST-CLASS mount: that
+  # is what lets nested tools (bwrap/podman) run their own pivot_root, which a
+  # plain chroot root — a mere directory on /data — cannot support on this
+  # kernel. Needs busybox (toybox/util-linux can't pivot here). Falls back to
+  # chroot if anything fails, so normal tool-runs never regress.
+  # --rbind (recursive) so the proc/sys/dev/pts/sdcard submounts mounted above
+  # come along; a plain --bind would drop them and leave /proc empty after pivot.
+  if [ -x "$BB" ] && $MOUNT --rbind "$K" "$K" 2>/dev/null; then
+    $MOUNT --make-rprivate "$K" 2>/dev/null
+    mkdir -p "$K/oldroot" 2>/dev/null
+    if ( cd "$K" && "$BB" pivot_root . oldroot ) 2>/dev/null; then
+      # Detach the old (Android) root so the session can't see the host tree.
+      /bin/umount -l /oldroot 2>/dev/null || umount -l /oldroot 2>/dev/null
+      rmdir /oldroot 2>/dev/null
+      cd / 2>/dev/null
+      # pivot_root replaces the root in place; no chroot needed. exec so the
+      # private namespace tears everything down on exit.
+      exec /usr/bin/env -i \
+        PATH="$KALI_PATH" HOME=/root TERM="${TERM:-xterm-256color}" \
+        LANG=C.UTF-8 LC_ALL=C.UTF-8 USER=root HOSTNAME=kali "$@"
+    fi
+    # pivot_root failed — undo the self-rbind before falling back to chroot.
+    umount -l "$K" 2>/dev/null
+  fi
+
   chroot "$K" /usr/bin/env -i \
     PATH="$KALI_PATH" HOME=/root TERM="${TERM:-xterm-256color}" \
     LANG=C.UTF-8 LC_ALL=C.UTF-8 USER=root HOSTNAME=kali "$@"
