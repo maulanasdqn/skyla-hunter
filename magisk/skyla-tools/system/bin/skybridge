@@ -1,0 +1,86 @@
+#!/system/bin/sh
+# skybridge — give podman BRIDGE networks real internet on this Android phone.
+#
+# The Kali chroot can't write Android's iptables filter table (vendor rules make
+# every REPLACE fail), so netavark's bridge can't install its own forward/NAT
+# rules and bridged containers have no internet. But `netd` CAN write that table.
+# skybridge asks netd — through its `ndc` client — to NAT-forward a podman bridge
+# to the phone's uplink, exactly the way it forwards a USB/Wi-Fi tether. netd
+# installs the ACCEPT + MASQUERADE rules we can't, and we add the one routing
+# rule that steers replies back across the bridge instead of out to the uplink.
+#
+# This runs on the ANDROID side (it needs /system/bin/ndc, which is bionic and
+# does not exist inside the chroot). Run it as root, AFTER a container has
+# brought the bridge up.
+#
+#   # 1. create a bridge network (once) and start a container on it:
+#   kali-native podman network create --subnet 10.201.0.0/24 skynet
+#   kali-native podman run -d --name web --dns 1.1.1.1 --network=skynet nginx
+#   # 2. authorise it through netd (from Android, as root):
+#   skybridge up skynet
+#   # ... containers on skynet now reach the internet over the bridge ...
+#   skybridge down skynet          # when finished
+#
+# Give containers a real resolver (--dns 1.1.1.1): podman's aardvark-dns answers
+# on the gateway IP, which is host-local and still blocked by Android's INPUT
+# chain; a forwarded resolver is reached through the NAT we just opened.
+#
+# Usage: skybridge up|down|status <podman-network> [uplink-iface]
+set -u
+K=/data/local/nhsystem/kali-arm64
+NETDIR="$K/etc/containers/networks"
+PREF=9000
+TAG=skybridge
+
+cmd="${1:-}"; NET="${2:-}"; UP="${3:-}"
+[ -n "$NET" ] || { echo "usage: skybridge up|down|status <podman-network> [uplink]"; exit 1; }
+CFG="$NETDIR/$NET.json"
+[ -f "$CFG" ] || { echo "skybridge: network '$NET' not found at $CFG"; exit 1; }
+
+# parse bridge iface + subnet out of the netavark network config
+IF=$(grep -o '"network_interface"[^,]*' "$CFG" | sed 's/.*"network_interface"[^"]*"\([^"]*\)".*/\1/')
+SUB=$(grep -o '"subnet"[^,]*' "$CFG" | head -1 | sed 's/.*"subnet"[^"]*"\([^"]*\)".*/\1/')
+[ -n "$IF" ] && [ -n "$SUB" ] || { echo "skybridge: cannot parse iface/subnet from $CFG"; exit 1; }
+
+# auto-detect the uplink interface from the default route in a non-local table
+if [ -z "$UP" ]; then
+  for t in 1030 1010 1021 1020 1011 1031; do
+    u=$(ip route show table $t 2>/dev/null | awk '/^default/{print $5; exit}')
+    [ -n "$u" ] && { UP=$u; break; }
+  done
+fi
+[ -n "$UP" ] || { echo "skybridge: no uplink default route found (pass one explicitly)"; exit 1; }
+# uplink gateway (for the main-table default forwarded traffic needs)
+GW=$(ip route show table all 2>/dev/null | awk -v u="$UP" '/^default/ && $0 ~ ("dev "u) {print $3; exit}')
+
+case "$cmd" in
+  up)
+    ndc ipfwd enable "$TAG"      >/dev/null 2>&1
+    ndc ipfwd add "$IF" "$UP"    >/dev/null 2>&1
+    ndc ipfwd add "$UP" "$IF"    >/dev/null 2>&1
+    ndc nat enable "$IF" "$UP" 1 >/dev/null 2>&1
+    echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null
+    # replies to the container must cross the bridge, not follow Android's
+    # per-uid rules out to the uplink; egress uses Android's own routing + NAT.
+    ip rule del to   "$SUB" lookup main pref "$PREF" 2>/dev/null
+    ip rule del from "$SUB" lookup main pref "$PREF" 2>/dev/null
+    ip rule add to   "$SUB" lookup main pref "$PREF"
+    ip rule add from "$SUB" lookup main pref "$PREF"
+    [ -n "$GW" ] && ip route replace default via "$GW" dev "$UP" 2>/dev/null
+    echo "skybridge up: $NET  bridge=$IF  subnet=$SUB  uplink=$UP  gw=${GW:-?}"
+    echo "containers on '$NET' now reach the internet (give them --dns 1.1.1.1)" ;;
+  down)
+    ndc nat disable "$IF" "$UP" 1 >/dev/null 2>&1
+    ndc ipfwd remove "$IF" "$UP"  >/dev/null 2>&1
+    ndc ipfwd remove "$UP" "$IF"  >/dev/null 2>&1
+    ndc ipfwd disable "$TAG"      >/dev/null 2>&1
+    ip rule del to   "$SUB" lookup main pref "$PREF" 2>/dev/null
+    ip rule del from "$SUB" lookup main pref "$PREF" 2>/dev/null
+    [ -n "$GW" ] && ip route del default via "$GW" dev "$UP" 2>/dev/null
+    echo "skybridge down: $NET  bridge=$IF" ;;
+  status)
+    echo "network: $NET"; echo "bridge:  $IF"; echo "subnet:  $SUB"; echo "uplink:  $UP (gw ${GW:-?})"
+    echo "ipfwd:   $(ndc ipfwd status 2>&1 | sed 's/^[0-9]* [0-9]* //')"
+    echo "rules:   $(ip rule show | grep -c "$SUB") active for $SUB" ;;
+  *) echo "usage: skybridge up|down|status <podman-network> [uplink]"; exit 1 ;;
+esac

@@ -25,7 +25,7 @@ push() { # <local> <device-dest>
 }
 
 echo "Deploying skyla-tools…"
-for f in kali-native nh dox kali-ok; do
+for f in kali-native nh dox kali-ok skybridge; do
   push "$HERE/skyla-tools/system/bin/$f" "$MOD/system/bin/$f"
 done
 push "$HERE/skyla-tools/module.prop" "$MOD/module.prop"
