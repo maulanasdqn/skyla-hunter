@@ -1,84 +1,56 @@
-# Kernel config — container cgroup controllers
+# Kernel config — container support
 
 > **Status: BUILT & FLASHED (11 Nov 2026).** The 4.14 kernel was rebuilt with
-> these two options and flashed to the device. Verified on the running kernel:
-> `zcat /proc/config.gz` shows `CONFIG_CGROUP_PIDS=y` and
-> `CONFIG_CGROUP_DEVICE=y`; `/sys/fs/cgroup/cgroup.controllers` now lists
-> `pids` (was `memory` only); `/proc/cgroups` shows `pids` and `devices`
-> enabled. `kali-ok` still passes 12/12 and bwrap still runs — no regression.
-> The built config matches `../kernel-config-container.txt` exactly.
+> these options and flashed. `podman` now runs real containers (see
+> [`../magisk/podman/`](../magisk/podman/)); `bwrap` works too
+> ([`../magisk/bwrap/`](../magisk/bwrap/)). `kali-ok` still passes 12/12 — no
+> regression.
 
-Config change to enable `podman`/`runc`/`crun` on the existing **4.14** kernel.
-This is **not** a version bump: the `sweet`/`sm6150` kernel is locked to the
-Qualcomm 4.14 BSP and is pre-GKI, so 5.x is not an option. This only switches on
-two controllers in the same 4.14 build, the same way `USER_NS`/`PID_NS` were
-added (see [`../KERNEL-NATIVE.md`](../KERNEL-NATIVE.md)).
+Config changes to enable container tooling (`podman`/`crun`/`bwrap`) on the
+existing **4.14** kernel. This is **not** a version bump: the `sweet`/`sm6150`
+kernel is locked to the Qualcomm 4.14 BSP and is pre-GKI, so 5.x is not an
+option. These only switch on options in the same 4.14 build, the same way
+`USER_NS`/`PID_NS` were added (see [`../KERNEL-NATIVE.md`](../KERNEL-NATIVE.md)).
 
-## The change
+## The options (added over the namespace kernel)
 
-| Option | Was | Now | Provides |
-|---|---|---|---|
-| `CONFIG_CGROUP_PIDS` | not set | `y` | `pids` controller (v1 **and** v2) — process-count limits |
-| `CONFIG_CGROUP_DEVICE` | not set | `y` | `devices` controller (cgroup **v1**/hybrid) |
+| Option | For |
+|---|---|
+| `CONFIG_CGROUP_PIDS` | `pids` controller (v1+v2) — appears in `cgroup.controllers` |
+| `CONFIG_CGROUP_DEVICE` | devices controller (cgroup v1/hybrid) |
+| `CONFIG_POSIX_MQUEUE` | crun mounts `mqueue` in every container — hard blocker without it |
+| `CONFIG_FHANDLE` | `open_by_handle_at`, moby "generally necessary" |
+| `CONFIG_BRIDGE_NETFILTER` | bridged container networking through netfilter |
+| `CONFIG_NETFILTER_XT_MATCH_ADDRTYPE` | MASQUERADE rules for container NAT |
+| `CONFIG_VXLAN`, `CONFIG_MACVLAN` | extra network modes |
 
-Both are plain bools gated only by `CONFIG_CGROUPS` (already `=y`), so no extra
-dependencies are pulled in. Already present and sufficient for the rest:
-`MEMCG`, `BLK_CGROUP`, `CGROUP_SCHED`, `CPUSETS`, `CGROUP_FREEZER`,
-`CGROUP_BPF`, `OVERLAY_FS`, `SECCOMP`, `USER_NS`, `PID_NS`.
+All are gated by options already `=y` (`CGROUPS`, `NETFILTER`, …), so nothing
+exotic is pulled in. `POSIX_MQUEUE_SYSCTL` auto-enables with `POSIX_MQUEUE`.
 
-- Files: [`nethunter-cgroup.config`](nethunter-cgroup.config) (the fragment to
-  build with), [`cgroup-pids-device.diff`](cgroup-pids-device.diff) (unified
-  diff against the running config), and `../kernel-config-container.txt` (the
-  full resulting config, for reference).
+- Files: [`nethunter.config`](nethunter.config) is the **complete** build
+  fragment used (Wi-Fi + BT + namespaces + these container options);
+  [`container-options.diff`](container-options.diff) is the unified diff of the
+  running config vs the previous namespace-only kernel;
+  `../kernel-config-container.txt` is the full running config.
 
-### cgroup v2 note
+## Apply + build + flash
 
-The device runs a hybrid cgroup setup (`/sys/fs/cgroup` is `cgroup2`, plus v1
-`/dev/cpuctl` etc.). In **pure v2** there is no `devices` controller file —
-device access is enforced through eBPF (`CONFIG_CGROUP_BPF`, already `=y`), so
-`CGROUP_DEVICE` matters for runc/crun running in **v1/hybrid** mode. `CGROUP_PIDS`
-is the one that will newly appear in `/sys/fs/cgroup/cgroup.controllers`.
-
-## Apply + build
-
-Append the fragment to the kernel tree's NetHunter config fragment, then rebuild
-as in KERNEL-NATIVE.md §6:
+The fragment is merged into the defconfig and the kernel built in a Debian
+container (case-sensitive FS); the boot image is repacked and `dd`-flashed.
+See `KERNEL-NATIVE.md §6` and `~/Downloads/nethunter-sweet/kbuild/build4.sh`
+(the `VERIFY` guard aborts the build if any of these options don't stick):
 
 ```sh
-cat kernel/nethunter-cgroup.config \
-  >> android_kernel_xiaomi_sm6150/arch/arm64/configs/vendor/nethunter.config
-
-# same build line as before:
-# make vendor/sdmsteppe-perf_defconfig vendor/sweet.config vendor/nethunter.config
-# (then build Image.gz + modules, repack boot-ns.img, flash)
+# in the kernel build dir (~/Downloads/nethunter-sweet/kbuild):
+docker run --rm -v "$PWD":/work debian:bookworm-slim bash /work/build4.sh
+# then on the host: ./repack.sh out-kernel4/Image.gz boot-new.img
+# back up current boot, then: dd if=boot-new.img of=/dev/block/by-name/boot bs=1M
 ```
 
-## Verify the options actually landed
-
-Config-level (before flashing — the build must show them `=y`):
+## Verify on-device (this kernel exposes `/proc/config.gz`)
 
 ```sh
-grep -E 'CONFIG_CGROUP_PIDS|CONFIG_CGROUP_DEVICE' \
-  kbuild/out-kernel4/kernel.config        # both must be =y, not "is not set"
+zcat /proc/config.gz | grep -E 'CGROUP_PIDS|CGROUP_DEVICE|POSIX_MQUEUE|FHANDLE|BRIDGE_NETFILTER|XT_MATCH_ADDRTYPE'
+cat /sys/fs/cgroup/cgroup.controllers          # host: shows 'pids'
+kali-native podman run --rm --network=host docker.io/library/alpine echo ok
 ```
-
-On-device after flashing (this kernel exposes `/proc/config.gz`):
-
-```sh
-zcat /proc/config.gz | grep -E 'CGROUP_PIDS|CGROUP_DEVICE'   # expect =y
-cat /sys/fs/cgroup/cgroup.controllers                        # expect 'pids' to appear
-```
-
-Runtime smoke test (pids controller usable):
-
-```sh
-kali-native sh -c 'mkdir -p /sys/fs/cgroup/t && echo +pids > /sys/fs/cgroup/cgroup.subtree_control && echo ok'
-```
-
-## Why this is needed
-
-`bwrap` already works without any rebuild (see [`../magisk/bwrap/`](../magisk/bwrap/)).
-`podman` additionally needs an OCI runtime (crun/runc) that sets up cgroups for
-the container; the `pids` (and, in v1/hybrid, `devices`) controllers are the
-missing kernel pieces. After this rebuild the kernel side is in place; the
-runtime side (crun + netavark/pasta config) is userspace and separate.
