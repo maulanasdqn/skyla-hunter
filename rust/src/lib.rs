@@ -8,14 +8,20 @@
 //! - [`wifi`]     — airodump-ng CSV parser
 //! - [`commands`] — builders for parameterised tool commands (msfvenom, hydra)
 //! - [`recon`]    — recon-agent command denylist, tool detection, header parsing
+//! - [`report`]   — recon-report Markdown builder + tool extraction
+//! - [`context`]  — LLM context token estimate + rolling window
+//! - [`netutil`]  — MAC parse/validate + network-interface filtering
 
 uniffi::setup_scaffolding!();
 
 mod commands;
+mod context;
 mod ducky;
 mod infrared;
 mod markdown;
+mod netutil;
 mod recon;
+mod report;
 mod wifi;
 
 /// Compile Ducky Script into a bash script that writes USB-HID boot-keyboard

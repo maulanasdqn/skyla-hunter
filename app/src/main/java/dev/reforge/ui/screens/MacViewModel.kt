@@ -31,8 +31,6 @@ class MacViewModel(app: Application) : AndroidViewModel(app) {
     var message by mutableStateOf<String?>(null)
         private set
 
-    private val macRe = Regex("([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}")
-
     init {
         viewModelScope.launch {
             val found = withContext(Dispatchers.IO) { detectIfaces() }
@@ -57,19 +55,13 @@ class MacViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setCustom(mac: String) {
         val m = mac.trim()
-        if (!macRe.matches(m)) { message = "Invalid MAC — use AA:BB:CC:DD:EE:FF"; return }
+        if (!uniffi.skyla_core.isValidMac(m)) { message = "Invalid MAC — use AA:BB:CC:DD:EE:FF"; return }
         runAction("-m $m")
     }
 
     /** Interfaces worth touching: wifi / ethernet / usb adapters / monitor ifaces. */
-    private fun detectIfaces(): List<String> {
-        val raw = RootShell.root("ls /sys/class/net 2>/dev/null")
-        return raw.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .filter { n -> listOf("wlan", "eth", "usb", "mon", "ap0", "wlx").any { n.startsWith(it) } }
-            .toList()
-    }
+    private fun detectIfaces(): List<String> =
+        uniffi.skyla_core.netIfaceCandidates(RootShell.root("ls /sys/class/net 2>/dev/null"))
 
     private fun read() {
         viewModelScope.launch {
@@ -99,9 +91,8 @@ class MacViewModel(app: Application) : AndroidViewModel(app) {
             }
             // What macchanger says it applied vs. what the kernel actually holds.
             val applied = out.lineSequence().firstOrNull { it.contains("New MAC", true) }
-                ?.let { macRe.find(it)?.value }
-            val actual = out.lineSequence().firstOrNull { it.startsWith("ACTUAL=") }
-                ?.let { macRe.find(it)?.value }
+                ?.let { uniffi.skyla_core.extractMac(it) }
+            val actual = uniffi.skyla_core.parseMacStatus(out).actual
             parse(out)
             message = when {
                 actual == null -> "Failed — ${out.lineSequence().firstOrNull { it.isNotBlank() } ?: "see interface"}"
@@ -116,11 +107,8 @@ class MacViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun parse(out: String) {
         // Prefer the real kernel MAC (ACTUAL=…) over macchanger's own report.
-        val actual = out.lineSequence().firstOrNull { it.startsWith("ACTUAL=") }
-            ?.let { macRe.find(it)?.value }
-        val cur = out.lineSequence().firstOrNull { it.contains("Current", true) }
-        val perm = out.lineSequence().firstOrNull { it.contains("Permanent", true) }
-        current = actual ?: cur?.let { macRe.find(it)?.value } ?: current
-        permanent = perm?.let { macRe.find(it)?.value } ?: permanent
+        val st = uniffi.skyla_core.parseMacStatus(out)
+        current = st.actual ?: st.current ?: current
+        permanent = st.permanent ?: permanent
     }
 }
