@@ -294,8 +294,7 @@ namespace tidak bisa diandalkan untuk membersihkannya (§7).
 
 Bagian ini awalnya ditulis sebagai batasan ("mount namespace tidak mengisolasi").
 **Itu keliru** — investigasi lanjutan membuktikan mount namespace berfungsi,
-dan penyebab kebocoran ada di lapisan pengguna, bukan kernel. Detail lengkap di
-[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md).
+dan penyebab kebocoran ada di lapisan pengguna, bukan kernel (rincian di bawah).
 
 Pengukuran ulang dengan penanda path unik:
 
@@ -327,8 +326,8 @@ gagal (`unable to stat either "/proc/self/exe"`). Pemulihannya hanya lewat
 `adb reboot` — `su`, `mount`, `ls` semuanya butuh `/proc`.
 
 Script sekarang selalu me-mount `/proc` ke **target chroot** (`$K/proc`), tidak
-pernah ke `/`. Dengan launcher yang memakai mount namespace sungguhan
-(§ PATCH-PNODE-PLAN langkah 3), insiden ini tidak bisa terulang.
+pernah ke `/`. Dengan launcher (`kali-native`) yang memakai mount namespace
+sungguhan, insiden ini tidak bisa terulang.
 
 ### Konsekuensi bubblewrap / podman
 
@@ -342,13 +341,13 @@ cannot execute: required file not found                (PATH bocor ke /system/bi
 ```
 
 Semuanya berasal dari lingkungan pemanggilan dan tool yang dipakai, bukan dari
-`fs/pnode.c`. Detail dan langkah perbaikannya di
-**[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md)**.
+`fs/pnode.c`. Solusinya sudah diterapkan — lihat
+**[magisk/bwrap/README.md](magisk/bwrap/README.md)** dan
+**[magisk/podman/README.md](magisk/podman/README.md)**.
 
 ### Langkah berikutnya
 
-Tidak perlu rebuild kernel. Perbaikannya ada di launcher — lihat
-**[PATCH-PNODE-PLAN.md](PATCH-PNODE-PLAN.md) §4**:
+Tidak perlu rebuild kernel. Perbaikannya ada di launcher `kali-native`:
 
 1. jangan pakai `mount` toybox untuk propagation (pakai `busybox mount`)
 2. jangan biarkan PATH chroot menunjuk `/system/bin`

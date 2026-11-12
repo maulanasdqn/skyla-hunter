@@ -21,8 +21,8 @@ root's `PATH` (`su -c kali-native …`).
 ## The commands
 
 - **`kali-native`** — enters the Kali chroot inside a private **mount + pid +
-  uts** namespace. The key fix (PATCH-PNODE-PLAN.md §4) is the mount namespace
-  plus `busybox_nh mount --make-rprivate /`: the `/proc`, `/sys`, `/dev/pts`,
+  uts** namespace. The key fix is the mount namespace plus
+  `busybox_nh mount --make-rprivate /`: the `/proc`, `/sys`, `/dev/pts`,
   `/sdcard` it mounts per session stay isolated and vanish on exit instead of
   leaking onto the host. User namespace is intentionally **not** nested — the
   launcher already runs as root, and nesting user-ns breaks the sdcardfs bind.

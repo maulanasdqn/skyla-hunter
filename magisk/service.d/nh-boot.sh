@@ -3,8 +3,8 @@
 #
 # Installed to /data/adb/service.d/nh-boot.sh (runs late-start, as root).
 #
-# kali-native now isolates its own mounts in a private mount namespace
-# (PATCH-PNODE-PLAN.md §4), so this boot script only establishes the two
+# kali-native now isolates its own mounts in a private mount namespace,
+# so this boot script only establishes the two
 # long-lived host binds NetHunter expects (/dev and /sdcard). It deliberately
 # does NOT mount /proc or /sys — those are created per session by kali-native
 # and torn down with the session.

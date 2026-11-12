@@ -19,9 +19,9 @@ object RootShell {
     /**
      * When installed, `kali-native` enters the chroot inside a private
      * mount+pid+uts namespace and marks / rprivate, so per-session mounts
-     * (/proc,/sys,/dev/pts,/sdcard) stay isolated and tear down on exit
-     * (PATCH-PNODE-PLAN.md §4). We route through it when present and fall back
-     * to a raw chroot otherwise. Detected once per process.
+     * (/proc,/sys,/dev/pts,/sdcard) stay isolated and tear down on exit.
+     * We route through it when present and fall back to a raw chroot
+     * otherwise. Detected once per process.
      */
     private val nativeLauncher: Boolean by lazy {
         root("command -v kali-native >/dev/null 2>&1 && echo yes").trim() == "yes"
