@@ -342,8 +342,8 @@ cannot execute: required file not found                (PATH bocor ke /system/bi
 
 Semuanya berasal dari lingkungan pemanggilan dan tool yang dipakai, bukan dari
 `fs/pnode.c`. Solusinya sudah diterapkan — lihat
-**[magisk/bwrap/README.md](magisk/bwrap/README.md)** dan
-**[magisk/podman/README.md](magisk/podman/README.md)**.
+**[magisk/bwrap/README.md](../magisk/bwrap/README.md)** dan
+**[magisk/podman/README.md](../magisk/podman/README.md)**.
 
 ### Langkah berikutnya
 

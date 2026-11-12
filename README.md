@@ -190,7 +190,7 @@ Kali binaries still run **natively** — ARM64 code executed directly by the
 kernel with full capabilities, not through qemu or proot.
 
 Untuk detail lengkap proses rebuild kernel, angka pengukuran, bukti isolasi, dan
-batasan yang tersisa, lihat **[KERNEL-NATIVE.md](KERNEL-NATIVE.md)**. Status
+batasan yang tersisa, lihat **[KERNEL-NATIVE.md](docs/KERNEL-NATIVE.md)**. Status
 bwrap dan podman (sudah berjalan) ada di
 **[magisk/bwrap/README.md](magisk/bwrap/README.md)** dan
 **[magisk/podman/README.md](magisk/podman/README.md)**.

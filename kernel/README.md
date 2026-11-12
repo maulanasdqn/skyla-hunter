@@ -10,7 +10,7 @@ Config changes to enable container tooling (`podman`/`crun`/`bwrap`) on the
 existing **4.14** kernel. This is **not** a version bump: the `sweet`/`sm6150`
 kernel is locked to the Qualcomm 4.14 BSP and is pre-GKI, so 5.x is not an
 option. These only switch on options in the same 4.14 build, the same way
-`USER_NS`/`PID_NS` were added (see [`../KERNEL-NATIVE.md`](../KERNEL-NATIVE.md)).
+`USER_NS`/`PID_NS` were added (see [`../docs/KERNEL-NATIVE.md`](../docs/KERNEL-NATIVE.md)).
 
 ## The options (added over the namespace kernel)
 
@@ -44,7 +44,7 @@ exotic is pulled in. `POSIX_MQUEUE_SYSCTL` auto-enables with `POSIX_MQUEUE`.
 
 The fragment is merged into the defconfig and the kernel built in a Debian
 container (case-sensitive FS); the boot image is repacked and `dd`-flashed.
-See `KERNEL-NATIVE.md §6` and `~/Downloads/nethunter-sweet/kbuild/build4.sh`
+See `docs/KERNEL-NATIVE.md §6` and `~/Downloads/nethunter-sweet/kbuild/build4.sh`
 (the `VERIFY` guard aborts the build if any of these options don't stick):
 
 ```sh
