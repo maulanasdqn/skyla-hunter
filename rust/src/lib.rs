@@ -11,6 +11,7 @@
 //! - [`report`]   — recon-report Markdown builder + tool extraction
 //! - [`context`]  — LLM context token estimate + rolling window
 //! - [`netutil`]  — MAC parse/validate + network-interface filtering
+//! - [`kv`]       — `KEY=VALUE` shell-output line parsing
 
 uniffi::setup_scaffolding!();
 
@@ -18,6 +19,7 @@ mod commands;
 mod context;
 mod ducky;
 mod infrared;
+mod kv;
 mod markdown;
 mod netutil;
 mod recon;

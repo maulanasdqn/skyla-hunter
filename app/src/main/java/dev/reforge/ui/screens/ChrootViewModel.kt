@@ -73,10 +73,7 @@ class ChrootViewModel(app: Application) : AndroidViewModel(app) {
             echo "disk=${'$'}(df -h / 2>/dev/null | awk 'NR==2{print ${'$'}3" used / "${'$'}2" ("${'$'}5")"}')"
             echo "mem=${'$'}(free -h 2>/dev/null | awk '/^Mem:/{print ${'$'}3" / "${'$'}2}')"
         """.trimIndent()
-        val out = RootShell.chroot(script)
-        val map = out.lineSequence()
-            .mapNotNull { l -> l.split("=", limit = 2).takeIf { it.size == 2 } }
-            .associate { it[0].trim() to it[1].trim() }
+        val map = uniffi.skyla_core.parseKvLines(RootShell.chroot(script))
         if (map["os"].isNullOrBlank() && map["kernel"].isNullOrBlank()) return emptyList()
         return listOf(
             InfoRow("OS", map["os"].orEmpty().ifBlank { "Kali Linux" }),
