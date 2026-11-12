@@ -1,6 +1,5 @@
 package dev.reforge.ui
 
-/** A one-input tool: {t} in the command is replaced by the target. */
 data class QuickTool(
     val name: String,
     val command: String,
@@ -9,7 +8,6 @@ data class QuickTool(
 
 data class ToolCategory(val id: String, val title: String, val tools: List<QuickTool>)
 
-/** Catalog powering the category runner screens. */
 val toolCategories = listOf(
     ToolCategory(
         "recon", "Recon / Scan",

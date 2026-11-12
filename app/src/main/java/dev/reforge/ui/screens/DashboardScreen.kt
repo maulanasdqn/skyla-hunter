@@ -60,13 +60,11 @@ fun DashboardScreen(onOpen: (String) -> Unit = {}, vm: DashboardViewModel = view
             }
         }
 
-        // status chips
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             StatusChip("Root", if (st.rootOnline == true) "Magisk" else "no", st.rootOnline, Modifier.weight(1f))
             StatusChip("Chroot", shortOs(st.chrootOs), st.chrootOnline, Modifier.weight(1f))
         }
 
-        // AI Agent hero
         Card(
             Modifier.fillMaxWidth().clickable { onOpen(Routes.AGENT) },
             colors = CardDefaults.cardColors(containerColor = SurfaceDark),
@@ -86,7 +84,6 @@ fun DashboardScreen(onOpen: (String) -> Unit = {}, vm: DashboardViewModel = view
             }
         }
 
-        // System card
         SectionCard("System") {
             InfoRow2("Kernel", st.kernel)
             InfoRow2("Disk", st.disk)
@@ -95,7 +92,6 @@ fun DashboardScreen(onOpen: (String) -> Unit = {}, vm: DashboardViewModel = view
             InfoRow2("IP", st.ip)
         }
 
-        // Services card
         Card(
             Modifier.fillMaxWidth().clickable { onOpen(Routes.SERVICES) },
             colors = CardDefaults.cardColors(containerColor = SurfaceDark),
@@ -123,7 +119,6 @@ fun DashboardScreen(onOpen: (String) -> Unit = {}, vm: DashboardViewModel = view
             }
         }
 
-        // Recent agent runs
         SectionCard("Recent recon") {
             if (st.recents.isEmpty()) {
                 Text("No conversations yet — ask the Agent to scan a target.", color = MutedDark, style = MaterialTheme.typography.bodyMedium)

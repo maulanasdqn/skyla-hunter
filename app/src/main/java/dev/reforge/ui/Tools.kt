@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
 
-/** A single Reforge tool. `route == null` means a screen isn't wired up yet. */
 data class ToolDef(
     val name: String,
     val detail: String,
@@ -25,7 +24,6 @@ data class ToolDef(
     val route: String? = null,
 )
 
-/** Single source of truth — Home and the Tools tab both render this list. */
 val reforgeTools = listOf(
     ToolDef("Terminal", "Run commands in the Kali chroot", Icons.Filled.Terminal, Routes.TERMINAL),
     ToolDef("Chroot", "System info, disk usage, status", Icons.Filled.Layers, Routes.CHROOT),

@@ -16,10 +16,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Infrared blaster control via Android's ConsumerIrManager (transmit only —
- * phones have no IR receiver). Powers a universal remote / TV-B-Gone sweep.
- */
 class IrViewModel(app: Application) : AndroidViewModel(app) {
     private val ir = app.getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager
     val hasEmitter: Boolean = ir?.hasIrEmitter() == true
@@ -40,7 +36,6 @@ class IrViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** TV-B-Gone: fire every TV power code in sequence. */
     fun sweep() {
         if (!hasEmitter || sweeping) return
         sweeping = true

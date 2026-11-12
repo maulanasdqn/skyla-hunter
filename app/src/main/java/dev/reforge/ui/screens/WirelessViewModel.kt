@@ -14,22 +14,16 @@ data class ApInfo(
     val bssid: String,
     val essid: String,
     val channel: String,
-    val power: Int,     // dBm (negative; closer to 0 = stronger)
+    val power: Int,
     val enc: String,
 )
 
-/**
- * Wireless — drives an external monitor-capable adapter (AR9271 / RT3070 class)
- * exposed as a second wlan interface. Toggles monitor mode with `iw` (never
- * `airmon-ng check kill`, which would drop wlan0 / wireless-ADB) and scans with
- * airodump-ng, parsing its CSV into an AP list.
- */
 class WirelessViewModel : ViewModel() {
     var iface by mutableStateOf<String?>(null)
         private set
     var driver by mutableStateOf<String?>(null)
         private set
-    var mode by mutableStateOf<String?>(null) // "monitor" | "managed" | null
+    var mode by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false)
         private set
     var scanning by mutableStateOf(false)
@@ -50,7 +44,6 @@ class WirelessViewModel : ViewModel() {
         action = null
     }
 
-    /** Deauth frames at the selected AP (authorized targets only). */
     fun deauth(count: Int = 10) {
         val ap = selected ?: return
         val i = iface ?: return
@@ -69,7 +62,6 @@ class WirelessViewModel : ViewModel() {
         }
     }
 
-    /** Capture a WPA handshake: targeted airodump + deauth bursts, then verify. */
     fun capture(seconds: Int = 25) {
         val ap = selected ?: return
         val i = iface ?: return
@@ -152,14 +144,12 @@ class WirelessViewModel : ViewModel() {
         }
     }
 
-    // Parsing lives in the Rust native core (skyla_core) via UniFFI; see
-    // rust/src/wifi.rs. Returns APs sorted by signal, strongest first.
     private fun parseCsv(csv: String): List<ApInfo> =
         uniffi.skyla_core.parseAirodumpCsv(csv)
             .map { ApInfo(it.bssid, it.essid, it.channel, it.power, it.enc) }
 
     companion object {
-        // Prints "<iface> <driver> <mode>" for the first external wlan (not wlan0).
+
         private const val DETECT = """
             for i in ${'$'}(ls /sys/class/net 2>/dev/null); do
               case "${'$'}i" in

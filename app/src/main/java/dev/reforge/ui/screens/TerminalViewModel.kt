@@ -17,11 +17,6 @@ enum class TermKind { COMMAND, OUTPUT, INFO }
 
 data class TermLine(val id: Long, val kind: TermKind, val text: String)
 
-/**
- * Manual terminal into the Kali chroot. Keeps output structured (command vs
- * output vs info) so the UI can style each like a real shell session, and
- * streams live via RootShell.chrootStream.
- */
 class TerminalViewModel(app: Application) : AndroidViewModel(app) {
     val lines = mutableStateListOf<TermLine>()
     var busy by mutableStateOf(false)

@@ -72,8 +72,7 @@ fun CategoryScreen(categoryId: String, onBack: () -> Unit, vm: RunnerViewModel =
     val listState = rememberLazyListState()
 
     androidx.compose.runtime.LaunchedEffect(vm.lines.size, vm.lines.lastOrNull()?.text?.length) {
-        // scrollToItem (not animate) — animate re-triggers on every streamed
-        // chunk and the list never settles at the bottom.
+
         if (vm.lines.isNotEmpty()) {
             listState.scrollToItem(vm.lines.lastIndex)
         }
@@ -94,7 +93,7 @@ fun CategoryScreen(categoryId: String, onBack: () -> Unit, vm: RunnerViewModel =
         }
 
         Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // tool picker
+
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(category.tools) { t ->
                     val idx = category.tools.indexOf(t)
@@ -112,7 +111,6 @@ fun CategoryScreen(categoryId: String, onBack: () -> Unit, vm: RunnerViewModel =
                 }
             }
 
-            // target + command preview
             TextField(
                 value = target,
                 onValueChange = { target = it },
@@ -137,7 +135,6 @@ fun CategoryScreen(categoryId: String, onBack: () -> Unit, vm: RunnerViewModel =
             }
         }
 
-        // output
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
@@ -151,7 +148,6 @@ fun CategoryScreen(categoryId: String, onBack: () -> Unit, vm: RunnerViewModel =
             items(vm.lines, key = { it.id }) { line -> RunLine(line) }
         }
 
-        // run / stop
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 14.dp)) {
             if (vm.busy) {
                 Button(

@@ -1,10 +1,3 @@
-//! Builders for parameterised tool commands. Having these in one place means
-//! the on-screen preview and the command that actually runs can't drift apart
-//! (previously duplicated string templates in the Kotlin screens).
-//!
-//! Blank required fields fall back to a `<placeholder>` so the preview stays
-//! readable; callers pass real (trimmed) values when actually executing.
-
 fn or_placeholder(v: &str, placeholder: &str) -> String {
     if v.trim().is_empty() {
         placeholder.to_string()
@@ -13,7 +6,6 @@ fn or_placeholder(v: &str, placeholder: &str) -> String {
     }
 }
 
-/// `msfvenom -p <payload> LHOST=<lhost> LPORT=<lport>[ -f <format>] -o <out_path>`
 #[uniffi::export]
 pub fn msfvenom_cmd(
     payload: String,
@@ -36,7 +28,6 @@ pub fn msfvenom_cmd(
     )
 }
 
-/// `hydra -l <user> -P <wordlist> -t 4 -f <service>://<target>`
 #[uniffi::export]
 pub fn hydra_cmd(user: String, wordlist: String, service: String, target: String) -> String {
     format!(
@@ -77,7 +68,12 @@ mod tests {
     #[test]
     fn hydra_basic() {
         assert_eq!(
-            hydra_cmd("root".into(), "/usr/share/wl.txt".into(), "ssh".into(), "1.2.3.4".into()),
+            hydra_cmd(
+                "root".into(),
+                "/usr/share/wl.txt".into(),
+                "ssh".into(),
+                "1.2.3.4".into()
+            ),
             "hydra -l root -P /usr/share/wl.txt -t 4 -f ssh://1.2.3.4"
         );
     }

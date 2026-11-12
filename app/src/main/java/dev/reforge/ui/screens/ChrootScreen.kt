@@ -72,7 +72,6 @@ fun ChrootScreen(onBack: () -> Unit, vm: ChrootViewModel = viewModel()) {
                 }
             }
 
-            // On-disk size (du is slow, so it is measured on request).
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark),

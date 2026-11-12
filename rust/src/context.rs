@@ -1,40 +1,24 @@
-//! Conversation context windowing, ported from Kotlin `ContextManager`.
-//!
-//! Keeps the turns sent to the LLM within a token budget using a rough
-//! chars/4 estimate and a rolling window that keeps the most recent turns. Pure
-//! and deterministic; the Android side only adapts its `JSONObject` turns to the
-//! [`Turn`] record and back.
-
-/// One conversation turn. The app's turns carry only role + content.
 #[derive(uniffi::Record, Clone, Debug)]
 pub struct Turn {
     pub role: String,
     pub content: String,
 }
 
-/// Result of windowing: the turns to send, plus the full history's estimated
-/// token count (so the UI can show how much was trimmed).
 #[derive(uniffi::Record, Clone, Debug)]
 pub struct WindowResult {
     pub turns: Vec<Turn>,
     pub total_tokens: i32,
 }
 
-/// Rough per-turn token cost: UTF-16 length / 4 + 4 (matches the Kotlin
-/// estimate, which used `String.length`, i.e. UTF-16 code units).
 fn cost(content: &str) -> i32 {
     (content.encode_utf16().count() as i32) / 4 + 4
 }
 
-/// Estimated token count of all turns.
 #[uniffi::export]
 pub fn estimate_tokens(turns: Vec<Turn>) -> i32 {
     turns.iter().map(|t| cost(&t.content)).sum()
 }
 
-/// Trim to a rolling window that fits `budget` tokens, newest turns kept. If any
-/// older turns are dropped, a short system note is prepended so the model knows
-/// context was trimmed.
 #[uniffi::export]
 pub fn context_window(turns: Vec<Turn>, budget: i32) -> WindowResult {
     let total: i32 = turns.iter().map(|t| cost(&t.content)).sum();
@@ -59,19 +43,24 @@ pub fn context_window(turns: Vec<Turn>, budget: i32) -> WindowResult {
     } else {
         kept
     };
-    WindowResult { turns: out, total_tokens: total }
+    WindowResult {
+        turns: out,
+        total_tokens: total,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     fn t(role: &str, content: &str) -> Turn {
-        Turn { role: role.into(), content: content.into() }
+        Turn {
+            role: role.into(),
+            content: content.into(),
+        }
     }
 
     #[test]
     fn estimate_is_chars_over_four_plus_four() {
-        // "12345678" -> 8/4 + 4 = 6
         assert_eq!(estimate_tokens(vec![t("user", "12345678")]), 6);
     }
 
@@ -80,18 +69,20 @@ mod tests {
         let turns = vec![t("user", "hi"), t("assistant", "yo")];
         let r = context_window(turns.clone(), 16_000);
         assert_eq!(r.turns.len(), 2);
-        assert!(r.turns.iter().all(|x| x.role != "system" || x.content.contains("trimmed") == false));
+        assert!(r
+            .turns
+            .iter()
+            .all(|x| x.role != "system" || x.content.contains("trimmed") == false));
     }
 
     #[test]
     fn window_trims_and_prepends_note() {
-        // three ~29-token turns, budget fits ~2 -> one dropped + note prepended
         let big = "x".repeat(100);
         let turns = vec![t("user", &big), t("assistant", &big), t("user", &big)];
         let r = context_window(turns, 60);
         assert_eq!(r.turns[0].role, "system");
         assert!(r.turns[0].content.contains("trimmed"));
-        // newest turn is always kept
+
         assert!(r.turns.last().unwrap().content.len() == 100);
     }
 

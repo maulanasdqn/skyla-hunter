@@ -2,7 +2,6 @@ package dev.reforge.core
 
 import android.content.Context
 
-/** Simple on-device settings store (SharedPreferences). */
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences("reforge", Context.MODE_PRIVATE)
 
@@ -14,17 +13,14 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_MODEL, "deepseek-chat") ?: "deepseek-chat"
         set(v) = prefs.edit().putString(KEY_MODEL, v).apply()
 
-    /** OpenAI-compatible endpoint base. "/chat/completions" is appended. */
     var baseUrl: String
         get() = prefs.getString(KEY_BASE, DEFAULT_BASE)?.ifBlank { DEFAULT_BASE } ?: DEFAULT_BASE
         set(v) = prefs.edit().putString(KEY_BASE, v).apply()
 
-    /** Extra request headers, one "Key: Value" per line (provider-specific). */
     var customHeaders: String
         get() = prefs.getString(KEY_HEADERS, "") ?: ""
         set(v) = prefs.edit().putString(KEY_HEADERS, v).apply()
 
-    /** Extra top-level JSON merged into the request body (provider-specific). */
     var extraBody: String
         get() = prefs.getString(KEY_EXTRA, "") ?: ""
         set(v) = prefs.edit().putString(KEY_EXTRA, v).apply()

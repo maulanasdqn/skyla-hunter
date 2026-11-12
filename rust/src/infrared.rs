@@ -1,22 +1,13 @@
-//! IR remote code generators. Phones transmit only, so this powers a
-//! universal-remote / TV-B-Gone style feature. Patterns are alternating
-//! on/off durations in microseconds, as `ConsumerIrManager.transmit()` wants.
-//!
-//! Port of the original Kotlin `Infrared` object + `IrCatalog`.
-
-/// NEC carrier frequency (Hz).
 #[uniffi::export]
 pub fn ir_nec_hz() -> i32 {
     38_000
 }
 
-/// Sony SIRC carrier frequency (Hz).
 #[uniffi::export]
 pub fn ir_sony_hz() -> i32 {
     40_000
 }
 
-/// A labelled IR command: name, carrier frequency, and on/off pattern (µs).
 #[derive(uniffi::Record, Clone)]
 pub struct IrEntry {
     pub name: String,
@@ -24,7 +15,6 @@ pub struct IrEntry {
     pub pattern: Vec<i32>,
 }
 
-/// Standard NEC: 8-bit address + inverse, 8-bit command + inverse, LSB-first.
 #[uniffi::export]
 pub fn ir_nec(address: i32, command: i32) -> Vec<i32> {
     let mut out = Vec::with_capacity(68);
@@ -44,7 +34,6 @@ pub fn ir_nec(address: i32, command: i32) -> Vec<i32> {
     out
 }
 
-/// Samsung: 4500/4500 lead, 16-bit address, 8-bit command + inverse, LSB-first.
 #[uniffi::export]
 pub fn ir_samsung(address16: i32, command: i32) -> Vec<i32> {
     let mut out = Vec::with_capacity(76);
@@ -63,12 +52,11 @@ pub fn ir_samsung(address16: i32, command: i32) -> Vec<i32> {
     out
 }
 
-/// Sony SIRC 12-bit: 7-bit command + 5-bit device, LSB-first, 40 kHz.
 #[uniffi::export]
 pub fn ir_sony12(command: i32, device: i32) -> Vec<i32> {
     let mut out = Vec::with_capacity(28);
     out.push(2400);
-    out.push(600); // header
+    out.push(600);
     let bits = |value: i32, n: i32, out: &mut Vec<i32>| {
         for i in 0..n {
             out.push(if (value >> i) & 1 == 1 { 1200 } else { 600 });
@@ -81,10 +69,13 @@ pub fn ir_sony12(command: i32, device: i32) -> Vec<i32> {
 }
 
 fn entry(name: &str, freq: i32, pattern: Vec<i32>) -> IrEntry {
-    IrEntry { name: name.to_string(), freq, pattern }
+    IrEntry {
+        name: name.to_string(),
+        freq,
+        pattern,
+    }
 }
 
-/// Starter multi-brand TV power catalog.
 #[uniffi::export]
 pub fn ir_tv_power() -> Vec<IrEntry> {
     let nec = ir_nec_hz();
@@ -99,7 +90,6 @@ pub fn ir_tv_power() -> Vec<IrEntry> {
     ]
 }
 
-/// Samsung TV control set (volume / channel / mute / source).
 #[uniffi::export]
 pub fn ir_samsung_controls() -> Vec<IrEntry> {
     let nec = ir_nec_hz();
@@ -119,7 +109,6 @@ mod tests {
 
     #[test]
     fn nec_shape() {
-        // 2 (lead) + 4*16 (four bytes) + 1 (stop) = 67
         assert_eq!(ir_nec(0x00, 0x02).len(), 67);
         assert_eq!(ir_nec(0, 0)[0], 9000);
         assert_eq!(ir_nec(0, 0)[1], 4500);
@@ -127,16 +116,13 @@ mod tests {
 
     #[test]
     fn nec_inverse_byte() {
-        // address 0x00 -> inverse 0xFF: the 8 bits after the first byte are all "1" (1690)
         let p = ir_nec(0x00, 0x00);
-        // first byte (0x00) is all zero bits -> all 560; second byte (0xFF) all 1690
-        // byte starts at index 2; second byte starts at 2 + 16 = 18
+
         assert_eq!(p[18 + 1], 1690);
     }
 
     #[test]
     fn sony_shape() {
-        // 2 (header) + 2*(7+5) = 26
         assert_eq!(ir_sony12(0x15, 0x01).len(), 26);
     }
 

@@ -1,26 +1,15 @@
-//! Ducky Script -> USB-HID compiler.
-//!
-//! Port of the original Kotlin `DuckyScript` object. Each HID boot-keyboard
-//! report is 8 bytes: [modifier, reserved, key1..key6]; a keypress is a press
-//! report followed by an all-zero release report, written to `/dev/hidg0`.
-//!
-//! Supported: REM, DELAY, DEFAULTDELAY/DEFAULT_DELAY, STRING, STRINGLN,
-//! ENTER/TAB/SPACE/ESC/arrows/F-keys/etc, and modifier combos
-//! (CTRL/ALT/SHIFT/GUI + key), e.g. `GUI r`, `CTRL ALT DELETE`.
-
 const CTRL: u8 = 0x01;
 const SHIFT: u8 = 0x02;
 const ALT: u8 = 0x04;
 const GUI: u8 = 0x08;
 
-/// char -> (keycode, modifier). Mirrors the Kotlin `keyForChar` table.
 fn key_for_char(c: char) -> Option<(u8, u8)> {
     match c {
         'a'..='z' => Some((0x04 + (c as u8 - b'a'), 0)),
         'A'..='Z' => Some((0x04 + (c as u8 - b'A'), SHIFT)),
         '1'..='9' => Some((0x1e + (c as u8 - b'1'), 0)),
         '0' => Some((0x27, 0)),
-        // shifted digit row "!@#$%^&*()"
+
         '!' => Some((0x1e, SHIFT)),
         '@' => Some((0x1f, SHIFT)),
         '#' => Some((0x20, SHIFT)),
@@ -59,7 +48,6 @@ fn key_for_char(c: char) -> Option<(u8, u8)> {
     }
 }
 
-/// Named key -> keycode. Mirrors the Kotlin `named` table (keys are uppercase).
 fn named(cmd: &str) -> Option<u8> {
     Some(match cmd {
         "ENTER" | "RETURN" => 0x28,
@@ -95,7 +83,6 @@ fn named(cmd: &str) -> Option<u8> {
     })
 }
 
-/// Modifier name -> bit. Mirrors the Kotlin `modNames` table (keys are uppercase).
 fn mod_name(tok: &str) -> Option<u8> {
     Some(match tok {
         "CTRL" | "CONTROL" => CTRL,
@@ -138,10 +125,9 @@ fn type_string(sb: &mut String, s: &str) {
     }
 }
 
-/// Returns a bash script, or an empty string if nothing typable was found.
 pub fn compile(text: &str) -> String {
     let mut sb = String::new();
-    sb.push_str(&release()); // make sure no key is stuck before we start
+    sb.push_str(&release());
     let mut default_delay: i32 = 0;
 
     for raw in text.split('\n') {
@@ -149,7 +135,7 @@ pub fn compile(text: &str) -> String {
         if line.is_empty() {
             continue;
         }
-        // split on the first space (limit = 2), preserving the rest verbatim
+
         let (head, rest) = match line.split_once(' ') {
             Some((a, b)) => (a, b),
             None => (line, ""),
@@ -157,7 +143,6 @@ pub fn compile(text: &str) -> String {
         let cmd = head.to_uppercase();
 
         if cmd == "REM" {
-            // comment: nothing
         } else if cmd == "DELAY" {
             sb.push_str(&sleep_ms(rest.trim().parse::<i32>().unwrap_or(0)));
         } else if cmd == "DEFAULTDELAY" || cmd == "DEFAULT_DELAY" {
@@ -170,7 +155,6 @@ pub fn compile(text: &str) -> String {
         } else if let Some(code) = named(&cmd) {
             tap(&mut sb, 0, code);
         } else if mod_name(&cmd).is_some() {
-            // modifier combo: scan every whitespace-separated token on the line
             let mut modifier: u8 = 0;
             let mut code: u8 = 0;
             for t in line.split_whitespace() {
@@ -188,7 +172,6 @@ pub fn compile(text: &str) -> String {
             }
             tap(&mut sb, modifier, code);
         }
-        // else: unknown command -> ignore (matches Kotlin)
 
         if default_delay > 0 {
             sb.push_str(&sleep_ms(default_delay));
@@ -200,75 +183,5 @@ pub fn compile(text: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn empty_input_is_just_two_releases() {
-        // leading release + trailing release, nothing in between
-        assert_eq!(compile(""), format!("{}{}", release(), release()));
-    }
-
-    #[test]
-    fn rem_is_ignored() {
-        assert_eq!(compile("REM hello world"), format!("{}{}", release(), release()));
-    }
-
-    #[test]
-    fn gui_r_combo() {
-        // GUI (0x08) + r (0x15)
-        let out = compile("GUI r");
-        let expected = format!(
-            "{}{}{}{}",
-            release(),
-            printf_report(GUI, 0x15),
-            release(),
-            release()
-        );
-        assert_eq!(out, expected);
-    }
-
-    #[test]
-    fn string_types_each_char_with_shift_for_caps() {
-        // "Ab" -> A (0x04 + SHIFT), b (0x05)
-        let out = compile("STRING Ab");
-        let expected = format!(
-            "{}{}{}{}{}{}",
-            release(),
-            printf_report(SHIFT, 0x04),
-            release(),
-            printf_report(0, 0x05),
-            release(),
-            release()
-        );
-        assert_eq!(out, expected);
-    }
-
-    #[test]
-    fn stringln_appends_enter() {
-        let out = compile("STRINGLN a");
-        assert!(out.contains(&printf_report(0, 0x04))); // 'a'
-        assert!(out.contains(&printf_report(0, 0x28))); // ENTER
-    }
-
-    #[test]
-    fn delay_and_default_delay() {
-        assert!(compile("DELAY 500").contains("sleep 0.500\n"));
-        // DEFAULTDELAY applies after each subsequent action line
-        let out = compile("DEFAULTDELAY 100\nENTER");
-        assert!(out.contains("sleep 0.100\n"));
-    }
-
-    #[test]
-    fn ctrl_alt_delete() {
-        let out = compile("CTRL ALT DELETE");
-        let expected = format!(
-            "{}{}{}{}",
-            release(),
-            printf_report(CTRL | ALT, 0x4c),
-            release(),
-            release()
-        );
-        assert_eq!(out, expected);
-    }
-}
+#[path = "ducky_tests.rs"]
+mod tests;

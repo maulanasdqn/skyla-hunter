@@ -12,11 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * KeX — a TigerVNC Kali desktop (XFCE) served from the chroot on display :1
- * (port 5901, localhost). Connect with the NetHunter KeX client or any VNC
- * viewer at 127.0.0.1:5901. A VNC password must be set before the first start.
- */
 class KexViewModel : ViewModel() {
     val log = mutableStateListOf<TermLine>()
     var running by mutableStateOf<Boolean?>(null)

@@ -9,13 +9,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Builds a markdown recon report from a session and saves it to Downloads/Reforge. */
 object ReportExporter {
-
-    // The Markdown assembly + tool extraction live in the Rust native core
-    // (skyla_core::report); this object keeps only the Android-facing timestamp
-    // and file-save. The timestamp is computed here and passed in, so the core
-    // stays pure/deterministic.
 
     fun build(title: String, messages: List<ChatMessage>): String {
         val now = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
@@ -38,7 +32,6 @@ object ReportExporter {
         text,
     )
 
-    /** Saves the report to Downloads/Reforge. Returns a display path, or null on failure. */
     fun save(context: Context, title: String, messages: List<ChatMessage>): String? {
         val md = build(title, messages)
         val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())

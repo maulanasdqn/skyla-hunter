@@ -1,21 +1,4 @@
 #!/bin/bash
-# build-bwrap.sh — build an EINVAL-tolerant bubblewrap for the NetHunter chroot.
-#
-# RUN THIS INSIDE THE KALI CHROOT (e.g. `nh bash /root/build-bwrap.sh`, or copy
-# it in and run from a `kali-native` shell). It is idempotent.
-#
-# Why patched: on this device the Kali rootfs is a directory subtree on the
-# f2fs /data partition, not a first-class mount. Stock bwrap dies at
-#   bwrap: Failed to make / slave: Invalid argument
-# and later at "Failed to make old root rprivate", because the kernel rejects
-# propagation changes on that /data-backed mount (only tmpfs accepts them).
-# kali-native already runs bwrap inside a private mount namespace AND enters via
-# pivot_root (so / is a real mount, which bwrap's own pivot_root needs), so
-# those two propagation calls are redundant here. This patch makes just those
-# two calls tolerate EINVAL instead of aborting. Everything else is stock.
-#
-# Needs kali-native's pivot_root entry to actually run bwrap — a plain chroot
-# root still can't pivot. See magisk/skyla-tools/system/bin/kali-native.
 set -euo pipefail
 
 VER=0.13.1

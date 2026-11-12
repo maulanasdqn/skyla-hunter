@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Deploy the skyla-tools Magisk module from this repo to a connected device.
-# Idempotent: backs up each target before overwriting, then runs kali-ok.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -11,7 +9,7 @@ TMP=/data/local/tmp
 adb get-state >/dev/null 2>&1 || { echo "no adb device"; exit 1; }
 adb shell 'su -c id -u' 2>/dev/null | grep -qx 0 || { echo "no root (su) on device"; exit 1; }
 
-push() { # <local> <device-dest>
+push() {
   local src="$1" dst="$2" base; base="$(basename "$dst")"
   adb push "$src" "$TMP/$base.deploy" >/dev/null
   adb shell "su -c '

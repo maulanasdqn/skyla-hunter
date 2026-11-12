@@ -1,13 +1,4 @@
 #!/system/bin/sh
-# kali-ok — health check for the NetHunter chroot and the native launcher.
-#
-# Note on mounts: kali-native now enters a real mount namespace and marks /
-# private (busybox_nh mount --make-rprivate /), so the /proc,/sys,/sdcard it
-# mounts live only for the session and cannot leak to the host (see
-# PATCH-PNODE-PLAN.md §4). Their absence outside a session is expected, not an
-# error — so we check the rootfs contents instead, run the in-chroot test
-# through kali-native itself, and verify that a mount made inside a session is
-# NOT visible on the host (the isolation proof).
 K=/data/local/nhsystem/kali-arm64
 KN=/data/adb/modules/skyla-tools/system/bin/kali-native
 [ -x "$KN" ] || KN=kali-native
@@ -23,9 +14,6 @@ chk "chroot $K /usr/bin/env PATH=/usr/bin:/bin /bin/bash -c 'test -x /usr/bin/nm
 chk "$KN true"                   "native launcher runs"
 chk "$KN hostname | grep -qx kali" "native UTS namespace (hostname=kali)"
 
-# Isolation proof: inside a native session, make a throwaway mount under /mnt
-# and confirm the host never sees it. If make-rprivate worked, the mount is
-# gone (and was never visible) the moment the session exits.
 hostmounts_before=$(mount | grep -c '/data/local/nhsystem/kali-arm64/mnt ')
 chk "$KN sh -c 'mkdir -p /mnt/ok && mount -t tmpfs t /mnt/ok && mountpoint -q /mnt/ok'" "mount namespace active (tmpfs inside session)"
 hostmounts_after=$(mount | grep -c '/data/local/nhsystem/kali-arm64/mnt ')

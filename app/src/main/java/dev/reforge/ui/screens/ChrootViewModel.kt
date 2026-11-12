@@ -11,17 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** One readable fact about the chroot / host. */
 data class InfoRow(val label: String, val value: String)
 
-/**
- * Chroot Manager. The NetHunter Kali chroot lives at
- * /data/local/nhsystem/kali-arm64 and is always mounted (it is entered on
- * demand, not a daemon), so this screen is an honest system dashboard:
- * OS / kernel / arch / disk / memory / uptime / live process count, plus an
- * on-demand measurement of the chroot's on-disk size (du is slow, so it is
- * a separate action).
- */
 class ChrootViewModel(app: Application) : AndroidViewModel(app) {
     var rows by mutableStateOf<List<InfoRow>>(emptyList())
         private set
@@ -62,7 +53,7 @@ class ChrootViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun gather(): List<InfoRow> {
-        // One round-trip: print KEY=VALUE lines we can parse.
+
         val script = """
             . /etc/os-release 2>/dev/null
             echo "os=${'$'}PRETTY_NAME"

@@ -41,7 +41,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refresh() {
         _state.value = _state.value.copy(loading = true)
-        // cheap, local-only bits first
+
         val endpoint = settings.baseUrl
             .removePrefix("https://").removePrefix("http://").substringBefore("/")
             .ifBlank { "not set" }

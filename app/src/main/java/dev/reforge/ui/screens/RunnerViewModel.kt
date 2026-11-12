@@ -13,10 +13,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Runs a single tool command in the chroot and streams its output, reusing the
- * structured TermLine model so category screens render like the terminal.
- */
 class RunnerViewModel(app: Application) : AndroidViewModel(app) {
     val lines = mutableStateListOf<TermLine>()
     var busy by mutableStateOf(false)
@@ -28,7 +24,7 @@ class RunnerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun run(cmd: String) {
         if (cmd.isBlank() || busy) return
-        RootShell.cancelProc() // drop any stale job before starting a new one
+        RootShell.cancelProc()
         lines.add(TermLine(seq++, TermKind.COMMAND, cmd))
         outId = null
         busy = true
@@ -40,8 +36,7 @@ class RunnerViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
             } finally {
-                // Always release the button, even if the process died, was
-                // killed, or the coroutine was cancelled by Stop.
+
                 outId = null
                 busy = false
             }

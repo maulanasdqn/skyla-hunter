@@ -74,7 +74,7 @@ fun MacScreen(onBack: () -> Unit, vm: MacViewModel = viewModel()) {
             Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Interface picker
+
             Text("Interface", style = MaterialTheme.typography.labelLarge, color = MutedDark)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(vm.ifaces) { iface ->
@@ -93,7 +93,6 @@ fun MacScreen(onBack: () -> Unit, vm: MacViewModel = viewModel()) {
                 }
             }
 
-            // Current / permanent
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark),
@@ -104,7 +103,6 @@ fun MacScreen(onBack: () -> Unit, vm: MacViewModel = viewModel()) {
                 }
             }
 
-            // Actions
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(
                     onClick = { vm.randomize() },
@@ -126,7 +124,6 @@ fun MacScreen(onBack: () -> Unit, vm: MacViewModel = viewModel()) {
                 }
             }
 
-            // Custom MAC
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

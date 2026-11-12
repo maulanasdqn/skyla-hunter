@@ -1,15 +1,4 @@
 #!/system/bin/sh
-# dox — OSINT / "doxing" multi-tool wrapper for NetHunter Kali chroot
-# usage:
-#   dox mail <email>        cek akun terdaftar dari email (holehe)
-#   dox user <username>     username di 3000+ situs (maigret)
-#   dox phone <+62xxx>      info nomor HP (PhoneInfoga)
-#   dox dom  <domain>       email/subdomain/host (theHarvester)
-#   dox exif <file>         metadata foto: GPS, kamera, tanggal (exiftool)
-#   dox whois <domain|ip>   whois
-#   dox ip   <ip|host>      DNS + PTR + whois ringkas
-#   dox all  <target>       mail|user|phone auto-detect lalu jalanin semua
-#   dox help
 K=/data/local/nhsystem/kali-arm64
 PATH_STR=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 OUT=$K/root/osint

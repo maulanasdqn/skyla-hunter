@@ -1,11 +1,7 @@
 #!/system/bin/sh
-# nh — NetHunter chroot quick launcher
-# usage: nh            -> interactive kali shell
-#        nh <command>  -> run command in kali
 K=/data/local/nhsystem/kali-arm64
 PATH_STR=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# ensure mounts exist (idempotent)
 for m in dev proc sys; do
   mountpoint -q "$K/$m" || mount -o bind "/$m" "$K/$m" 2>/dev/null
 done

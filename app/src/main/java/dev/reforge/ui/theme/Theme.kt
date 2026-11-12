@@ -7,7 +7,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Minimalist dark-first palette — matches the device theme (near-black + soft blue accent).
 val Accent = Color(0xFF5B8CFF)
 val AccentDim = Color(0xFF3A5FB0)
 val BgDark = Color(0xFF0B0E13)

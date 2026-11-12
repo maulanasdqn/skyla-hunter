@@ -64,7 +64,7 @@ fun HydraScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
     var target by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("root") }
     var wordlist by remember { mutableStateOf(DEFAULT_WORDLIST) }
-    // Command built by the Rust core (skyla_core) so preview and run can't drift.
+
     val preview = uniffi.skyla_core.hydraCmd(user, wordlist, service, target)
     val listState = rememberLazyListState()
 

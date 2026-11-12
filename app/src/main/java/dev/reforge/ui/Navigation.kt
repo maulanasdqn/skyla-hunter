@@ -108,8 +108,7 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: ()
 
 @Composable
 private fun CenterAgent(selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    // Big raised center action — the AI Agent. Bottom padding floats it above
-    // the smaller side tabs while staying within the bar's bounds (no clipping).
+
     Box(
         modifier.padding(bottom = 12.dp),
         contentAlignment = Alignment.BottomCenter,

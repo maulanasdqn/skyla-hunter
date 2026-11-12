@@ -1,9 +1,3 @@
-//! airodump-ng CSV parser. Turns the AP section of an airodump `-w ... --output-format csv`
-//! dump into a sorted access-point list (strongest signal first).
-//!
-//! Port of `WirelessViewModel.parseCsv`.
-
-/// One access point seen by airodump-ng.
 #[derive(uniffi::Record, Clone)]
 pub struct AccessPoint {
     pub bssid: String,
@@ -13,7 +7,6 @@ pub struct AccessPoint {
     pub enc: String,
 }
 
-/// Parse airodump CSV, keeping only AP rows, sorted by signal power descending.
 #[uniffi::export]
 pub fn parse_airodump_csv(csv: String) -> Vec<AccessPoint> {
     let mut out: Vec<AccessPoint> = Vec::new();
@@ -26,7 +19,7 @@ pub fn parse_airodump_csv(csv: String) -> Vec<AccessPoint> {
             continue;
         }
         if line.starts_with("Station MAC") {
-            break; // station section — stop
+            break;
         }
         let c: Vec<String> = line.split(',').map(|s| s.trim().to_string()).collect();
         if c.len() < 14 {
@@ -37,12 +30,26 @@ pub fn parse_airodump_csv(csv: String) -> Vec<AccessPoint> {
             continue;
         }
         let channel = c[3].clone();
-        let enc = if c[5].is_empty() { "OPN".to_string() } else { c[5].clone() };
+        let enc = if c[5].is_empty() {
+            "OPN".to_string()
+        } else {
+            c[5].clone()
+        };
         let power = c[8].parse::<i32>().unwrap_or(-100);
-        let essid = if c[13].is_empty() { "<hidden>".to_string() } else { c[13].clone() };
-        out.push(AccessPoint { bssid, essid, channel, power, enc });
+        let essid = if c[13].is_empty() {
+            "<hidden>".to_string()
+        } else {
+            c[13].clone()
+        };
+        out.push(AccessPoint {
+            bssid,
+            essid,
+            channel,
+            power,
+            enc,
+        });
     }
-    // strongest first (stable, matches Kotlin sortedByDescending)
+
     out.sort_by(|a, b| b.power.cmp(&a.power));
     out
 }
@@ -62,7 +69,7 @@ Station MAC, First time seen, Last, Power, packets, BSSID, Probed\n\
 FF:FF:FF:FF:FF:FF, t, t, -30, 5, AA:BB:CC:DD:EE:02,\n";
         let aps = parse_airodump_csv(csv.to_string());
         assert_eq!(aps.len(), 2);
-        assert_eq!(aps[0].essid, "NearAP"); // -40 strongest first
+        assert_eq!(aps[0].essid, "NearAP");
         assert_eq!(aps[0].power, -40);
         assert_eq!(aps[1].essid, "FarAP");
     }

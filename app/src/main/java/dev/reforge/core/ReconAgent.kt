@@ -1,15 +1,8 @@
 package dev.reforge.core
 
-import okhttp3.Call
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
-/** One event surfaced to the UI as the agent works. */
 data class AgentEvent(val kind: Kind, val text: String) {
     enum class Kind {
         STREAM_DELTA, STREAM_END, COMMAND, OUTPUT, OUTPUT_DELTA, OUTPUT_END,
@@ -17,36 +10,24 @@ data class AgentEvent(val kind: Kind, val text: String) {
     }
 }
 
-/**
- * DeepSeek-powered recon agent with a streaming function-calling loop and two
- * "hands":
- *  - exec_chroot: run recon commands inside the Kali chroot (allowlisted).
- *  - app_action : drive the Reforge app itself (navigate, toast, get_status).
- * Streams its text token-by-token and can be cancelled mid-run.
- */
 class ReconAgent(
     private val apiKey: String,
     private val model: String,
-    // Called (and blocks) when a command trips the denylist. Returns true to run
-    // it anyway, false to skip. Default refuses — safe for non-interactive use.
+
     private val confirm: (String) -> Boolean = { false },
-    // OpenAI-compatible endpoint base; "/chat/completions" is appended.
+
     private val baseUrl: String = "https://api.deepseek.com",
-    // Provider-specific extras the user configures in Settings.
+
     private val extraHeaders: String = "",
     private val extraBody: String = "",
 ) {
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(180, TimeUnit.SECONDS)
-        .build()
+    private val client = ReconClient(apiKey, model, baseUrl, extraHeaders, extraBody)
 
     @Volatile private var cancelled = false
-    @Volatile private var currentCall: Call? = null
 
     fun cancel() {
         cancelled = true
-        currentCall?.cancel()
+        client.cancel()
         RootShell.cancelProc()
     }
 
@@ -67,10 +48,6 @@ class ReconAgent(
         - Read each result, then decide the next step. Summarize findings in concise markdown.
     """.trimIndent()
 
-    // The destructive-command denylist and the known-tool detection now live in
-    // the Rust native core (rust/src/recon.rs), reached through UniFFI, so the
-    // security-critical patterns are unit-tested and shared. Guards against a
-    // malicious scan target injecting a destructive command into the loop.
     private fun isDangerous(cmd: String): Boolean = uniffi.skyla_core.commandIsDangerous(cmd)
 
     private val usedTools = LinkedHashSet<String>()
@@ -92,7 +69,7 @@ class ReconAgent(
         while (steps < MAX_STEPS && !cancelled) {
             steps++
             val msg = try {
-                stream(messages, emit)
+                client.stream(messages, emit)
             } catch (e: Exception) {
                 emit(AgentEvent(AgentEvent.Kind.STREAM_END, ""))
                 if (cancelled) { emit(AgentEvent(AgentEvent.Kind.ERROR, "Stopped.")); emitRunInfo(emit); return finalAnswer }
@@ -129,8 +106,6 @@ class ReconAgent(
         }
         if (cancelled) { emit(AgentEvent(AgentEvent.Kind.ERROR, "Stopped.")); emitRunInfo(emit); return finalAnswer }
 
-        // Step budget hit: force a final, tool-free summary so the user always
-        // gets a conclusion instead of a dead-end "step limit" message.
         messages.put(
             JSONObject().put("role", "user").put(
                 "content",
@@ -139,7 +114,7 @@ class ReconAgent(
             )
         )
         val summary = try {
-            stream(messages, emit, "none")
+            client.stream(messages, emit, "none")
         } catch (e: Exception) {
             emit(AgentEvent(AgentEvent.Kind.STREAM_END, ""))
             emitRunInfo(emit)
@@ -155,8 +130,7 @@ class ReconAgent(
     private fun execChroot(command: String, emit: (AgentEvent) -> Unit): String {
         if (command.isBlank()) return "error: empty command"
         if (isDangerous(command)) {
-            // Don't silently refuse — ask the user inline. confirm() blocks this
-            // worker thread until they tap Run anyway / Skip in the chat.
+
             if (cancelled) return "cancelled"
             val ok = confirm(command)
             if (!ok) {
@@ -187,128 +161,4 @@ class ReconAgent(
         return r
     }
 
-    private fun stream(
-        messages: JSONArray,
-        emit: (AgentEvent) -> Unit,
-        toolChoice: String = "auto",
-    ): JSONObject {
-        val bodyObj = JSONObject()
-            .put("model", model)
-            .put("messages", messages)
-            .put("tools", toolsSpec())
-            .put("tool_choice", toolChoice)
-            .put("temperature", 0.2)
-            .put("stream", true)
-        // Merge any provider-specific top-level fields (e.g. {"uncensored": true}).
-        if (extraBody.isNotBlank()) {
-            try {
-                val eb = JSONObject(extraBody)
-                val keys = eb.keys()
-                while (keys.hasNext()) { val k = keys.next(); bodyObj.put(k, eb.get(k)) }
-            } catch (_: Exception) { /* ignore malformed extra body */ }
-        }
-        val body = bodyObj.toString()
-
-        val builder = Request.Builder()
-            .url("${baseUrl.trim().trimEnd('/')}/chat/completions")
-            .addHeader("Authorization", "Bearer $apiKey")
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Accept", "text/event-stream")
-            .post(body.toRequestBody("application/json".toMediaType()))
-        parseHeaders(extraHeaders).forEach { (k, v) -> builder.addHeader(k, v) }
-        val req = builder.build()
-
-        val content = StringBuilder()
-        val tools = HashMap<Int, Array<Any>>()
-
-        val call = http.newCall(req)
-        currentCall = call
-        call.execute().use { r ->
-            if (!r.isSuccessful) {
-                val err = r.body?.string()?.take(300) ?: ""
-                throw RuntimeException("HTTP ${r.code}: $err")
-            }
-            val source = r.body!!.source()
-            while (true) {
-                val line = source.readUtf8Line() ?: break
-                if (!line.startsWith("data:")) continue
-                val payload = line.substring(5).trim()
-                if (payload == "[DONE]") break
-                val delta = JSONObject(payload)
-                    .getJSONArray("choices").getJSONObject(0).optJSONObject("delta") ?: continue
-
-                delta.optString("content", "").takeIf { it.isNotEmpty() }?.let {
-                    content.append(it)
-                    emit(AgentEvent(AgentEvent.Kind.STREAM_DELTA, it))
-                }
-                delta.optJSONArray("tool_calls")?.let { tcs ->
-                    for (j in 0 until tcs.length()) {
-                        val tc = tcs.getJSONObject(j)
-                        val idx = tc.optInt("index", 0)
-                        val slot = tools.getOrPut(idx) { arrayOf("", "", StringBuilder()) }
-                        tc.optString("id", "").takeIf { it.isNotEmpty() }?.let { slot[0] = it }
-                        val fn = tc.optJSONObject("function")
-                        fn?.optString("name", "")?.takeIf { it.isNotEmpty() }?.let { slot[1] = it }
-                        fn?.optString("arguments", "")?.takeIf { it.isNotEmpty() }?.let {
-                            (slot[2] as StringBuilder).append(it)
-                        }
-                    }
-                }
-            }
-        }
-
-        val msg = JSONObject().put("role", "assistant").put("content", content.toString())
-        if (tools.isNotEmpty()) {
-            val arr = JSONArray()
-            tools.toSortedMap().forEach { (_, slot) ->
-                arr.put(
-                    JSONObject().put("id", slot[0]).put("type", "function").put(
-                        "function",
-                        JSONObject().put("name", slot[1])
-                            .put("arguments", (slot[2] as StringBuilder).toString())
-                    )
-                )
-            }
-            msg.put("tool_calls", arr)
-        }
-        return msg
-    }
-
-    /** Parse "Key: Value" lines into header pairs (native core, rust/src/recon.rs). */
-    private fun parseHeaders(raw: String): List<Pair<String, String>> =
-        uniffi.skyla_core.parseHeaders(raw).map { it.name to it.value }
-
-    private fun toolsSpec(): JSONArray {
-        val execChroot = JSONObject().put("type", "function").put(
-            "function",
-            JSONObject().put("name", "exec_chroot")
-                .put("description", "Run a non-interactive shell command inside the Kali chroot and return its output.")
-                .put(
-                    "parameters",
-                    JSONObject().put("type", "object")
-                        .put("properties", JSONObject().put(
-                            "command", JSONObject().put("type", "string").put("description", "The shell command to run")
-                        ))
-                        .put("required", JSONArray().put("command"))
-                )
-        )
-        val appAction = JSONObject().put("type", "function").put(
-            "function",
-            JSONObject().put("name", "app_action")
-                .put("description", "Control the Reforge app UI: navigate between screens, show a toast, or read status.")
-                .put(
-                    "parameters",
-                    JSONObject().put("type", "object")
-                        .put("properties", JSONObject()
-                            .put("action", JSONObject().put("type", "string")
-                                .put("enum", JSONArray().put("navigate").put("toast").put("get_status")))
-                            .put("target", JSONObject().put("type", "string")
-                                .put("description", "For navigate: home | agent | tools | settings"))
-                            .put("message", JSONObject().put("type", "string")
-                                .put("description", "For toast: the text to show")))
-                        .put("required", JSONArray().put("action"))
-                )
-        )
-        return JSONArray().put(execChroot).put(appAction)
-    }
 }

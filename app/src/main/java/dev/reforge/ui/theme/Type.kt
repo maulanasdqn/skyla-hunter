@@ -6,7 +6,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// System font, tightened weights for a clean minimalist feel.
 val ReforgeTypography = Typography(
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,

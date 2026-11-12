@@ -1,31 +1,8 @@
 #!/system/bin/sh
-# kali-native — run Kali NetHunter natively on the kernel.
-#
-# Detects what this kernel supports and uses the strongest isolation available.
-# The rebuilt kernel (USER_NS+PID_NS+IPC_NS) enables real process isolation; the
-# stock one does not, hence the capability probe instead of hardcoded flags.
-#
-#   kali-native              interactive root shell in Kali
-#   kali-native <cmd...>     run one command
-#   kali-native --net        private network stack
-#   kali-native --isolated   private PID namespace (fresh pid1, own /proc)
-#   kali-native --check      report capability + mode that would be used
-#
-# MOUNT ISOLATION (see PATCH-PNODE-PLAN.md §4): every launch now enters a real
-# mount namespace (`unshare -m`) and immediately marks / private with
-#   busybox_nh mount --make-rprivate /
-# so the /proc,/sys,/dev/pts,/sdcard it mounts for the session cannot propagate
-# back to the host and disappear automatically when the session exits. Toybox
-# `mount` reads /etc/fstab and fails there (it does not exist under Magisk), so
-# busybox_nh is used for the mount operations. The cleanup trap below is kept
-# only as a belt-and-suspenders fallback for the (stock-kernel) case where
-# make-rprivate is unavailable.
 
 K=/data/local/nhsystem/kali-arm64
 KALI_PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Prefer busybox_nh for mounts: toybox mount dies on /etc/fstab, including for
-# --make-rprivate. Fall back to plain mount if busybox_nh is missing.
 BB=/system/xbin/busybox_nh
 if [ -x "$BB" ]; then MOUNT="$BB mount"; else MOUNT="mount"; fi
 
@@ -63,28 +40,22 @@ status() {
   fi
 }
 
-# ---- inside the namespace -------------------------------------------------
 if [ "${1:-}" = "__inner" ]; then
   shift
   PRIV_NET="$1"; shift
   ISOLATED_PID="$1"; shift
   MODE="$1"; shift
 
-  # No command given -> interactive login shell.
   [ "$#" -eq 0 ] && set -- /bin/bash -l
 
   hostname kali 2>/dev/null
   [ "$PRIV_NET" = "1" ] && ip link set lo up 2>/dev/null
 
-  # Make / private FIRST so nothing we mount below leaks to the host. This is
-  # the fix from PATCH-PNODE-PLAN.md §4: with a private mount namespace the
-  # session's mounts vanish on exit on their own.
   rpriv=0
   $MOUNT --make-rprivate / 2>/dev/null && rpriv=1
 
   made_proc=0; made_sys=0; made_pts=0; made_sd=0
   cleanup() {
-    # Only needed when make-rprivate failed (mounts could otherwise leak).
     [ "$rpriv" = 1 ] && return
     [ "$made_sd"  = 1 ] && umount "$K/sdcard"    2>/dev/null
     [ "$made_pts" = 1 ] && umount "$K/dev/pts"   2>/dev/null
@@ -94,16 +65,11 @@ if [ "${1:-}" = "__inner" ]; then
   trap cleanup EXIT INT TERM HUP
 
   mountpoint -q "$K/proc"    || { $MOUNT -t proc  proc  "$K/proc"    2>/dev/null && made_proc=1; }
-  # In a PID namespace the chroot's /proc must be (re)mounted from inside the
-  # new namespace, otherwise it keeps showing the host's process list.
   if [ "$ISOLATED_PID" = "1" ]; then
     umount "$K/proc" 2>/dev/null
     $MOUNT -t proc proc "$K/proc" 2>/dev/null && made_proc=1
   fi
   mountpoint -q "$K/sys"     || { $MOUNT -t sysfs sysfs "$K/sys"     2>/dev/null && made_sys=1;  }
-  # cgroup2 for container runtimes (podman/crun): the fresh sysfs above does not
-  # carry the host's cgroup mounts, so provide a clean cgroup2 hierarchy exposing
-  # the memory+pids controllers the kernel now enables.
   mkdir -p "$K/sys/fs/cgroup" 2>/dev/null
   mountpoint -q "$K/sys/fs/cgroup" || $MOUNT -t cgroup2 none "$K/sys/fs/cgroup" 2>/dev/null
   mountpoint -q "$K/dev/pts" || { mkdir -p "$K/dev/pts"; $MOUNT -t devpts devpts "$K/dev/pts" 2>/dev/null && made_pts=1; }
@@ -112,28 +78,17 @@ if [ "${1:-}" = "__inner" ]; then
   [ "${KALI_NATIVE_QUIET:-0}" = "1" ] || \
     echo "[kali-native] native arm64 · $MODE · priv-mnt=$rpriv · host=$(hostname) · kernel $(uname -r)" >&2
 
-  # Enter the rootfs. Prefer pivot_root so / becomes a FIRST-CLASS mount: that
-  # is what lets nested tools (bwrap/podman) run their own pivot_root, which a
-  # plain chroot root — a mere directory on /data — cannot support on this
-  # kernel. Needs busybox (toybox/util-linux can't pivot here). Falls back to
-  # chroot if anything fails, so normal tool-runs never regress.
-  # --rbind (recursive) so the proc/sys/dev/pts/sdcard submounts mounted above
-  # come along; a plain --bind would drop them and leave /proc empty after pivot.
   if [ -x "$BB" ] && $MOUNT --rbind "$K" "$K" 2>/dev/null; then
     $MOUNT --make-rprivate "$K" 2>/dev/null
     mkdir -p "$K/oldroot" 2>/dev/null
     if ( cd "$K" && "$BB" pivot_root . oldroot ) 2>/dev/null; then
-      # Detach the old (Android) root so the session can't see the host tree.
       /bin/umount -l /oldroot 2>/dev/null || umount -l /oldroot 2>/dev/null
       rmdir /oldroot 2>/dev/null
       cd / 2>/dev/null
-      # pivot_root replaces the root in place; no chroot needed. exec so the
-      # private namespace tears everything down on exit.
       exec /usr/bin/env -i \
         PATH="$KALI_PATH" HOME=/root TERM="${TERM:-xterm-256color}" \
         LANG=C.UTF-8 LC_ALL=C.UTF-8 USER=root HOSTNAME=kali "$@"
     fi
-    # pivot_root failed — undo the self-rbind before falling back to chroot.
     umount -l "$K" 2>/dev/null
   fi
 
@@ -143,18 +98,12 @@ if [ "${1:-}" = "__inner" ]; then
   exit $?
 fi
 
-# ---- entry points ---------------------------------------------------------
-# -m (mount) is always added so make-rprivate has a private namespace to work
-# in; it is supported even on the stock kernel. -p (pid) is only added when the
-# kernel actually has PID_NS, otherwise unshare would fail outright.
 case "${1:-}" in
   --check|-c) status ;;
 
   --isolated|-i)
     shift
     if [ "$(cap_pid)" = yes ]; then
-      # -m (mount) -p (pid) -u (uts) -f (fork). Toybox has no --mount-proc, so
-      # the inner handler mounts the chroot's own /proc for a fresh pid1 view.
       exec unshare -mupf "$SELF" __inner 0 1 "chroot+uts+pid+mnt" "$@"
     fi
     exec unshare -mu --fork "$SELF" __inner 0 0 "chroot+uts+mnt" "$@" ;;

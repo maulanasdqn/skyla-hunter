@@ -52,7 +52,6 @@ fun ReforgeApp() {
         val current = backStack?.destination?.route ?: Routes.DASHBOARD
         val ctx = LocalContext.current
 
-        // wire the agent's "second hand" to the live UI
         LaunchedEffect(nav) {
             AppController.navigate = { route -> nav.navigateTab(route) }
             AppController.toast = { msg -> Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() }

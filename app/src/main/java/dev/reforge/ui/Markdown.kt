@@ -35,13 +35,6 @@ import uniffi.skyla_core.parseMarkdown
 import uniffi.skyla_core.Span as MdSpan
 import uniffi.skyla_core.SpanStyle as MdStyle
 
-/**
- * Markdown renderer for the agent's answers. Parsing lives in the Rust core
- * (`skyla_core`, see rust/src/markdown.rs) and returns a flat list of blocks;
- * this file only turns that model into Compose nodes.
- * Supports: headings, bullet & numbered lists, bold/italic/inline-code,
- * fenced code blocks, and GitHub-style tables.
- */
 @Composable
 fun MarkdownText(
     markdown: String,
@@ -74,11 +67,8 @@ private fun headingSize(level: Int): TextUnit = when (level) {
     else -> 16.sp
 }
 
-// ---- inline spans ----
-
 private val codeSpan = SpanStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, color = Accent)
 
-/** Turn the core's styled spans into a Compose AnnotatedString. */
 fun spansToAnnotated(spans: List<MdSpan>): AnnotatedString = buildAnnotatedString {
     for (s in spans) {
         when (s.style) {
@@ -89,8 +79,6 @@ fun spansToAnnotated(spans: List<MdSpan>): AnnotatedString = buildAnnotatedStrin
         }
     }
 }
-
-// ---- tables ----
 
 @Composable
 private fun TableBlock(header: List<List<MdSpan>>, rows: List<List<List<MdSpan>>>) {
@@ -128,8 +116,6 @@ private fun TableRow(cells: List<List<MdSpan>>, cols: Int, headerStyle: Boolean)
         }
     }
 }
-
-// ---- blocks ----
 
 @Composable
 private fun Heading(spans: List<MdSpan>, size: TextUnit) {

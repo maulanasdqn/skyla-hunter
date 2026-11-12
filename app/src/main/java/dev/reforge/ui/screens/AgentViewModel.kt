@@ -15,32 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-enum class MsgKind { USER, THOUGHT, COMMAND, OUTPUT, ANSWER, ERROR, RUNINFO }
-
-data class ChatMessage(
-    val id: Long,
-    val kind: MsgKind,
-    val text: String,
-)
-
-data class AgentState(
-    val messages: List<ChatMessage> = emptyList(),
-    val busy: Boolean = false,
-    val streaming: Boolean = false,
-    val title: String = "New chat",
-    val contextTokens: Int = 0,
-    val sessions: List<SessionMeta> = emptyList(),
-    // A denylisted command awaiting the user's Run anyway / Skip decision.
-    val pendingConfirm: String? = null,
-)
-
-private const val GREETING =
-    "Hi — I'm the **Recon Agent**, powered by DeepSeek.\n\n" +
-        "Give me a target or a goal, for example:\n" +
-        "- `scan scanme.nmap.org`\n" +
-        "- find subdomains of `example.com`\n\n" +
-        "Set your DeepSeek key in **Settings** first."
-
 class AgentViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = mutableStateOf(AgentState())
     val state: State<AgentState> = _state
@@ -55,22 +29,18 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     private var agent: ReconAgent? = null
     private var job: Job? = null
 
-    // Hands the user's Run anyway / Skip decision from the UI thread back to the
-    // blocked agent worker thread.
     private val confirmChannel = java.util.concurrent.LinkedBlockingQueue<Boolean>()
 
     init {
         val metas = store.list()
-        current = if (metas.isNotEmpty()) store.load(metas.first().id) ?: freshSession() else freshSession()
+        current = if (metas.isNotEmpty()) store.load(metas.first().id) ?: freshSession(store) else freshSession(store)
         seq = (current.ui.maxOfOrNull { it.id } ?: 0L) + 1
         pushState()
     }
 
-    // ---- session management ----
-
     fun newChat() {
         saveCurrent()
-        current = freshSession()
+        current = freshSession(store)
         seq = 1L
         store.save(current)
         pushState()
@@ -88,22 +58,11 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         store.delete(id)
         if (id == current.id) {
             val metas = store.list()
-            current = if (metas.isNotEmpty()) store.load(metas.first().id) ?: freshSession() else freshSession()
+            current = if (metas.isNotEmpty()) store.load(metas.first().id) ?: freshSession(store) else freshSession(store)
             seq = (current.ui.maxOfOrNull { it.id } ?: 0L) + 1
         }
         pushState()
     }
-
-    private fun freshSession(): Session = Session(
-        id = store.newId(),
-        title = "New chat",
-        updatedAt = System.currentTimeMillis(),
-        ui = mutableListOf(ChatMessage(0, MsgKind.ANSWER, GREETING)),
-        turns = mutableListOf(),
-    )
-
-    // ---- chat ----
-
     fun send(text: String) {
         append(MsgKind.USER, text)
         if (current.title == "New chat") current.title = text.take(40)
@@ -145,7 +104,6 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         saveCurrent()
     }
 
-    /** Called from the agent worker thread; blocks until the user decides. */
     private fun awaitConfirm(cmd: String): Boolean {
         viewModelScope.launch(Dispatchers.Main) {
             _state.value = _state.value.copy(pendingConfirm = cmd)
@@ -157,13 +115,10 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         return ok
     }
 
-    /** UI taps Run anyway (true) / Skip (false). */
     fun resolveConfirm(run: Boolean) {
         _state.value = _state.value.copy(pendingConfirm = null)
         confirmChannel.offer(run)
     }
-
-    // ---- internals ----
 
     private fun onEvent(ev: AgentEvent) {
         viewModelScope.launch(Dispatchers.Main) {
@@ -200,7 +155,6 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Grow the live tool-output bubble, keeping only the tail so huge scans stay light. */
     private fun appendOutputDelta(delta: String) {
         val id = outputId
         if (id == null) {

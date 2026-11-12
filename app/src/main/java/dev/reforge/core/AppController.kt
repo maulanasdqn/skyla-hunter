@@ -4,11 +4,6 @@ import android.os.Handler
 import android.os.Looper
 import dev.reforge.ui.Routes
 
-/**
- * The agent's "second hand": lets the DeepSeek agent drive the Reforge app
- * itself (navigate screens, show a toast, read live status) in addition to
- * running commands in the chroot. The UI layer wires the hooks at startup.
- */
 object AppController {
     @Volatile var navigate: ((String) -> Unit)? = null
     @Volatile var toast: ((String) -> Unit)? = null

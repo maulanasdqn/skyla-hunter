@@ -68,7 +68,7 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
         }
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // adapter card
+
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
                 Column(Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -102,7 +102,6 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
                 }
             }
 
-            // scan button
             Button(
                 onClick = { vm.scan() },
                 enabled = vm.iface != null && monitor && !vm.scanning && !vm.busy,
@@ -120,7 +119,6 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
 
             vm.message?.let { Text(it, color = MutedDark, style = MaterialTheme.typography.bodyMedium) }
 
-            // selected-AP actions
             vm.selected?.let { ap ->
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SurfaceDark2)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -150,7 +148,6 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
             }
         }
 
-        // AP list
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -169,53 +166,3 @@ fun WirelessScreen(onBack: () -> Unit, vm: WirelessViewModel = viewModel()) {
     }
 }
 
-@Composable
-private fun ApRow(ap: ApInfo, selected: Boolean, onClick: () -> Unit) {
-    val open = ap.enc.contains("OPN", true) || ap.enc.isBlank()
-    Card(
-        Modifier.fillMaxWidth().clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = if (selected) SurfaceDark2 else SurfaceDark),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            SignalBars(ap.power)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(ap.essid, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                Text(
-                    "${ap.bssid}  ·  ch ${ap.channel}",
-                    style = MaterialTheme.typography.bodySmall, color = MutedDark, fontFamily = FontFamily.Monospace,
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (open) Icons.Filled.LockOpen else Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = if (open) Color(0xFFE0A05A) else MutedDark,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(ap.enc.ifBlank { "OPN" }, style = MaterialTheme.typography.labelMedium, color = MutedDark)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SignalBars(power: Int) {
-    // -40 strong … -90 weak → 0..4 bars
-    val level = when {
-        power >= -50 -> 4
-        power >= -62 -> 3
-        power >= -74 -> 2
-        power >= -86 -> 1
-        else -> 0
-    }
-    Row(verticalAlignment = Alignment.Bottom) {
-        repeat(4) { idx ->
-            Box(
-                Modifier.padding(end = 2.dp).width(4.dp).height((5 + idx * 4).dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(if (idx < level) Accent else SurfaceDark2),
-            )
-        }
-    }
-}

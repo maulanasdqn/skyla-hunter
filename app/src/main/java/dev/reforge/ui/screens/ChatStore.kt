@@ -5,7 +5,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-/** A saved conversation: display messages + the LLM turn history. */
 data class Session(
     val id: String,
     var title: String,
@@ -14,10 +13,8 @@ data class Session(
     val turns: MutableList<JSONObject>,
 )
 
-/** Lightweight listing entry for the history sheet. */
 data class SessionMeta(val id: String, val title: String, val updatedAt: Long)
 
-/** Persists chat sessions as JSON files under filesDir/sessions. */
 class ChatStore(context: Context) {
     private val dir = File(context.filesDir, "sessions").apply { mkdirs() }
 

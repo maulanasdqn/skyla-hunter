@@ -63,9 +63,9 @@ private val payloads = listOf(
 )
 
 private val PBg = Color(0xFF0B0E14)
-private val PPrompt = Color(0xFF43D08A)
-private val POut = Color(0xFFAEB9C9)
-private val PCmd = Color(0xFFE6ECF5)
+internal val PPrompt = Color(0xFF43D08A)
+internal val POut = Color(0xFFAEB9C9)
+internal val PCmd = Color(0xFFE6ECF5)
 
 @Composable
 fun PayloadScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
@@ -74,7 +74,7 @@ fun PayloadScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
     var lport by remember { mutableStateOf("4444") }
     val p = payloads[selected]
     val outPath = "/root/reforge-payloads/reverse-${p.name.lowercase().replace(" ", "")}.${p.ext}"
-    // Command built by the Rust core (skyla_core) so preview and run can't drift.
+
     val preview = uniffi.skyla_core.msfvenomCmd(p.payload, lhost, lport, p.format, outPath)
     val listState = rememberLazyListState()
 
@@ -177,27 +177,3 @@ fun PayloadScreen(onBack: () -> Unit, vm: RunnerViewModel = viewModel()) {
     }
 }
 
-@Composable
-private fun pColors() = TextFieldDefaults.colors(
-    focusedContainerColor = SurfaceDark2,
-    unfocusedContainerColor = SurfaceDark2,
-    focusedIndicatorColor = Color.Transparent,
-    unfocusedIndicatorColor = Color.Transparent,
-    cursorColor = Accent,
-)
-
-@Composable
-private fun PLine(line: TermLine) {
-    when (line.kind) {
-        TermKind.COMMAND -> Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-            Text("❯ ", color = PPrompt, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-            Box(Modifier.horizontalScroll(rememberScrollState())) {
-                Text(line.text, color = PCmd, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-            }
-        }
-        TermKind.OUTPUT -> Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            Text(line.text, color = POut, fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 16.sp)
-        }
-        TermKind.INFO -> Text(line.text, color = Color(0xFF5A6677), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-    }
-}

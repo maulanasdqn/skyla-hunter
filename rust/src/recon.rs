@@ -1,20 +1,6 @@
-//! Recon-agent pure logic, ported from Kotlin `ReconAgent`.
-//!
-//! These are deterministic, Android-free decisions the agent makes about shell
-//! commands and provider config, so they live in the native core where they can
-//! be unit-tested and shared:
-//! - [`command_is_dangerous`] — the destructive-command denylist (security
-//!   critical: it guards the LLM tool-call loop against a scan target injecting
-//!   something destructive).
-//! - [`detect_tools`] — which known recon tools a command invokes (run summary).
-//! - [`parse_headers`] — "Key: Value" lines -> header pairs.
-
 use regex_lite::Regex;
 use std::sync::OnceLock;
 
-/// Destructive / dangerous command patterns. Everything not matched is allowed
-/// (this is the user's own authorized device); a match makes the agent ask for
-/// explicit confirmation before running. Compiled once.
 fn deny_patterns() -> &'static [Regex] {
     static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
     PATTERNS.get_or_init(|| {
@@ -30,7 +16,7 @@ fn deny_patterns() -> &'static [Regex] {
             r"\b(reboot|shutdown|poweroff|halt)\b",
             r">\s*/dev/(sd|block|mmc|null/)",
             r"\bof=/dev/",
-            r":\s*\(\s*\)\s*\{", // fork bomb
+            r":\s*\(\s*\)\s*\{",
             r"\buserdel\b",
             r"\b(passwd|chpasswd)\b",
             r"\bchmod\s+-R\s+777\s+/",
@@ -42,25 +28,45 @@ fn deny_patterns() -> &'static [Regex] {
     })
 }
 
-/// True if the command matches any destructive pattern on the denylist.
 #[uniffi::export]
 pub fn command_is_dangerous(cmd: String) -> bool {
     deny_patterns().iter().any(|re| re.is_match(&cmd))
 }
 
-/// Recon tools recognised for the "tools used" run summary. Order is preserved
-/// in [`detect_tools`] output. Matching is case-sensitive, matching the Kotlin
-/// original (e.g. `theHarvester`).
 const KNOWN_TOOLS: &[&str] = &[
-    "rustscan", "nmap", "masscan", "subfinder", "amass", "sublist3r", "whatweb",
-    "dnsenum", "dnsrecon", "dig", "host", "whois", "theHarvester", "wafw00f",
-    "nikto", "feroxbuster", "ffuf", "gobuster", "sherlock", "holehe", "maigret",
-    "phoneinfoga", "exiftool", "socialscan", "finalrecon", "fierce", "dnstwist",
-    "nbtscan", "dmitry", "curl", "wpscan",
+    "rustscan",
+    "nmap",
+    "masscan",
+    "subfinder",
+    "amass",
+    "sublist3r",
+    "whatweb",
+    "dnsenum",
+    "dnsrecon",
+    "dig",
+    "host",
+    "whois",
+    "theHarvester",
+    "wafw00f",
+    "nikto",
+    "feroxbuster",
+    "ffuf",
+    "gobuster",
+    "sherlock",
+    "holehe",
+    "maigret",
+    "phoneinfoga",
+    "exiftool",
+    "socialscan",
+    "finalrecon",
+    "fierce",
+    "dnstwist",
+    "nbtscan",
+    "dmitry",
+    "curl",
+    "wpscan",
 ];
 
-/// Whole-word (ASCII `\b…\b`) search: `word` must be bounded on both sides by a
-/// non-`[A-Za-z0-9_]` char or the string edge. Avoids compiling 30 regexes.
 fn contains_word(hay: &str, word: &str) -> bool {
     let h = hay.as_bytes();
     let w = word.as_bytes();
@@ -83,7 +89,6 @@ fn contains_word(hay: &str, word: &str) -> bool {
     false
 }
 
-/// Known recon tools present in the command, in [`KNOWN_TOOLS`] order, no dupes.
 #[uniffi::export]
 pub fn detect_tools(cmd: String) -> Vec<String> {
     KNOWN_TOOLS
@@ -93,15 +98,12 @@ pub fn detect_tools(cmd: String) -> Vec<String> {
         .collect()
 }
 
-/// One parsed `Key: Value` header line.
 #[derive(uniffi::Record, Clone)]
 pub struct HeaderPair {
     pub name: String,
     pub value: String,
 }
 
-/// Parse "Key: Value" lines into header pairs. Splits on the first `:`, trims
-/// both sides, and drops lines with an empty key or value (and blank lines).
 #[uniffi::export]
 pub fn parse_headers(raw: String) -> Vec<HeaderPair> {
     raw.lines()
@@ -143,8 +145,10 @@ mod tests {
         ));
         assert!(!command_is_dangerous("nmap -sV scanme.nmap.org".into()));
         assert!(!command_is_dangerous("whois example.com".into()));
-        // "format" contains no bare mkfs; must not false-positive.
-        assert!(!command_is_dangerous("echo please format the report".into()));
+
+        assert!(!command_is_dangerous(
+            "echo please format the report".into()
+        ));
     }
 
     #[test]
@@ -155,7 +159,6 @@ mod tests {
 
     #[test]
     fn tool_match_is_whole_word() {
-        // "dig" must not match inside "digest"; "host" not inside "ghost".
         assert!(detect_tools("digest ghostscript".into()).is_empty());
         assert_eq!(detect_tools("dig +short example.com".into()), vec!["dig"]);
     }

@@ -50,7 +50,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.reforge.ui.theme.Accent
 import dev.reforge.ui.theme.MutedDark
 
-// Terminal palette
 private val TermBg = Color(0xFF0B0E14)
 private val TermBar = Color(0xFF151A23)
 private val Prompt = Color(0xFF43D08A)
@@ -68,7 +67,7 @@ fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // App header
+
         Row(
             Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 10.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -82,7 +81,6 @@ fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
             }
         }
 
-        // The "terminal window"
         Column(
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp)
                 .clip(RoundedCornerShape(12.dp))
@@ -100,7 +98,6 @@ fun TerminalScreen(onBack: () -> Unit, vm: TerminalViewModel = viewModel()) {
             }
         }
 
-        // Input
         Row(
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -158,7 +155,7 @@ private fun TitleBar() {
         Spacer(Modifier.weight(1f))
         Text("root@kali: ~", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = Dim)
         Spacer(Modifier.weight(1f))
-        // keep the label centered by balancing the dots' width
+
         Spacer(Modifier.size(53.dp))
     }
 }

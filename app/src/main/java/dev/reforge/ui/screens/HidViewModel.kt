@@ -14,10 +14,6 @@ import kotlinx.coroutines.withContext
 
 data class HidPreset(val name: String, val script: String)
 
-/**
- * DuckHunter / BadUSB. Compiles Ducky Script to HID reports and injects them
- * into whatever computer the phone is plugged into, via /dev/hidg0.
- */
 class HidViewModel(app: Application) : AndroidViewModel(app) {
     var script by mutableStateOf(DEMO)
         private set

@@ -4,40 +4,21 @@ import android.util.Base64
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-/**
- * Runs commands as root (Magisk su) and inside the Kali NetHunter chroot.
- * Mirrors the NetHunter layout: chroot at /data/local/nhsystem/kali-arm64.
- *
- * Phase 1 uses this directly from the ViewModel; later the Rust agent core
- * calls back into it through a UniFFI interface so the LLM can execute tools.
- */
 object RootShell {
     private const val CHROOT = "/data/local/nhsystem/kali-arm64"
     private const val KALI_PATH =
         "/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-    /**
-     * When installed, `kali-native` enters the chroot inside a private
-     * mount+pid+uts namespace and marks / rprivate, so per-session mounts
-     * (/proc,/sys,/dev/pts,/sdcard) stay isolated and tear down on exit.
-     * We route through it when present and fall back to a raw chroot
-     * otherwise. Detected once per process.
-     */
     private val nativeLauncher: Boolean by lazy {
         root("command -v kali-native >/dev/null 2>&1 && echo yes").trim() == "yes"
     }
 
-    // Strips ANSI/VT escape sequences (SGR colors, cursor moves) so tool output
-    // reads cleanly in the UI and doesn't waste LLM tokens on control codes.
     private val ansiEscape = Regex("\u001B[\\[\\]][0-9;?]*[ -/]*[@-~]|\u001B[@-Z\\\\-_]")
 
-    /** Run a raw command as root (outside the chroot). */
     fun root(cmd: String): String = exec(arrayOf("su", "-c", cmd))
 
-    /** Run a command inside the Kali chroot as root. */
     fun chroot(cmd: String): String {
-        // kali-native sets its own `env -i` (PATH/HOME/TERM/LANG) inside the
-        // namespace, so the raw-chroot env line is only needed in the fallback.
+
         val inner = if (nativeLauncher)
             "KALI_NATIVE_QUIET=1 kali-native /bin/bash -c ${singleQuote(cmd)}"
         else
@@ -47,16 +28,14 @@ object RootShell {
         return exec(arrayOf("su", "-c", inner))
     }
 
-    /** True if we actually have root. */
     fun hasRoot(): Boolean = root("id -u").trim() == "0"
 
     @Volatile private var currentProc: Process? = null
     @Volatile private var currentTag: String? = null
 
-    /** Kill the currently streaming chroot command (used by Stop). */
     fun cancelProc() {
         try { currentProc?.destroyForcibly() } catch (_: Exception) {}
-        // pkill -f takes a regex: quote it so the path stays one argument.
+
         currentTag?.let { tag ->
             try {
                 root("pkill -f ${singleQuote(tag)}")
@@ -67,38 +46,15 @@ object RootShell {
         currentTag = null
     }
 
-    /**
-     * Runs a command in the chroot and streams its output live.
-     *  - A PTY (`script`) makes recon tools line-flush in real time.
-     *  - `onChunk` is called with batched output (throttled ~150ms) as it arrives.
-     *  - `timeout` bounds runtime; Stop (cancelProc) kills the whole job.
-     * Returns the full captured output (capped) for the LLM tool result.
-     */
     fun chrootStream(cmd: String, timeoutSec: Int = 600, onChunk: (String) -> Unit): String {
         val b64 = Base64.encodeToString(cmd.toByteArray(), Base64.NO_WRAP)
         val tag = "reforge_job_${System.nanoTime()}.sh"
-        // Stage the job script inside the chroot's own /tmp: Android's /tmp is
-        // shell-owned (unwritable by root), /data/local/tmp isn't mounted into
-        // the chroot, and /sdcard is noexec.
-        // Path to the job script as seen *inside* the chroot. On the host it is
-        // $CHROOT/tmp/$tag — the chroot's /tmp is part of the rootfs, not a
-        // separate mount, so a file staged there from the host is visible inside.
+
         val jobIn = "/tmp/$tag"
         currentTag = jobIn
-        // NOTE: keep the payload free of single quotes. In the fallback branch
-        // the whole thing is wrapped in single quotes for the outer `bash -c`,
-        // so an inner ' — e.g. from a naively nested `script -q -c 'bash x'` —
-        // would close the quote early and leave bash interactive (no output).
-        // `script -q -c <prog> <outfile>` with the program path unquoted is safe:
-        // the path is ours and has no shell metacharacters.
-        // Reap job scripts orphaned by a previous Stop/kill before staging this
-        // one: when the parent su process is killed the trailing `rm -f` never
-        // runs, and old scripts pile up under /tmp.
+
         val full = if (nativeLauncher) {
-            // Stage on the host (into the chroot's /tmp) BEFORE kali-native
-            // enters its namespace, then run it through the launcher's PTY.
-            // `timeout` wraps the whole namespace, so Stop/timeout kills the
-            // session and its isolated mounts vanish with it.
+
             "rm -f $CHROOT/tmp/reforge_job_*.sh; " +
                 "echo $b64 | base64 -d > $CHROOT$jobIn; " +
                 "KALI_NATIVE_QUIET=1 timeout $timeoutSec " +
@@ -115,8 +71,7 @@ object RootShell {
         }
         val sb = StringBuilder()
         return try {
-            // `script` allocates a PTY and would otherwise block waiting on the
-            // parent's stdin; give the process an empty stdin so it can stream.
+
             val proc = ProcessBuilder("su", "-c", full)
                 .redirectErrorStream(true)
                 .redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))

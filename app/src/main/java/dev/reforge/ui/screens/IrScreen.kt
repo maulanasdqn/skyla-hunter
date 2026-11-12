@@ -69,7 +69,7 @@ fun IrScreen(onBack: () -> Unit, vm: IrViewModel = viewModel()) {
         }
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // emitter status
+
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.SettingsRemote, contentDescription = null, tint = if (vm.hasEmitter) Accent else MutedDark)
@@ -82,7 +82,7 @@ fun IrScreen(onBack: () -> Unit, vm: IrViewModel = viewModel()) {
             }
 
             if (vm.hasEmitter) {
-                // TV-B-Gone sweep
+
                 Button(
                     onClick = { vm.sweep() },
                     enabled = !vm.sweeping,
@@ -99,7 +99,6 @@ fun IrScreen(onBack: () -> Unit, vm: IrViewModel = viewModel()) {
                 Text("Samsung controls", style = MaterialTheme.typography.labelLarge, color = MutedDark)
                 GridButtons(vm.controls) { vm.send(it) }
 
-                // custom NEC
                 Text("Custom NEC (hex)", style = MaterialTheme.typography.labelLarge, color = MutedDark)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     HexField(addr, { addr = it }, "addr", Modifier.weight(1f))

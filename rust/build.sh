@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Build the Rust core and wire its outputs into the Android app:
-#   1. build a host cdylib and generate Kotlin UniFFI bindings from it
-#   2. cross-compile the arm64-v8a .so into app/src/main/jniLibs
-#
-# Idempotent; safe to run from Gradle (preBuild depends on it) or by hand.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -15,7 +10,6 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
-# Locate the Android NDK (cargo-ndk needs ANDROID_NDK_HOME).
 : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 if [ -z "${ANDROID_NDK_HOME:-}" ]; then
   ANDROID_NDK_HOME="$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | sort -V | tail -1 || true)"

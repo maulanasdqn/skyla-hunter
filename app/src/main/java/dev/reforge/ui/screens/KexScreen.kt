@@ -62,11 +62,11 @@ import dev.reforge.ui.theme.MutedDark
 import dev.reforge.ui.theme.SurfaceDark
 import dev.reforge.ui.theme.SurfaceDark2
 
-private const val KEX_CLIENT = "com.offsec.nethunter.kex"
+internal const val KEX_CLIENT = "com.offsec.nethunter.kex"
 private val KBg = Color(0xFF0B0E14)
-private val KPrompt = Color(0xFF43D08A)
-private val KOut = Color(0xFFAEB9C9)
-private val KCmd = Color(0xFFE6ECF5)
+internal val KPrompt = Color(0xFF43D08A)
+internal val KOut = Color(0xFFAEB9C9)
+internal val KCmd = Color(0xFFE6ECF5)
 
 @Composable
 fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
@@ -93,7 +93,7 @@ fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
         }
 
         Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // status
+
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.size(12.dp).clip(CircleShape).background(if (vm.running == true) Accent else MutedDark))
@@ -109,7 +109,6 @@ fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
                 }
             }
 
-            // resolution
             Text("Resolution", style = MaterialTheme.typography.labelLarge, color = MutedDark)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(vm.resolutions) { r ->
@@ -127,7 +126,6 @@ fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
                 }
             }
 
-            // password
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextField(
                     value = pw, onValueChange = { pw = it },
@@ -146,7 +144,6 @@ fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
                 }
             }
 
-            // start/stop + connect
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 if (vm.running == true) {
                     Button(
@@ -167,7 +164,6 @@ fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
             }
         }
 
-        // log
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
@@ -189,28 +185,3 @@ fun KexScreen(onBack: () -> Unit, vm: KexViewModel = viewModel()) {
     }
 }
 
-private fun openKexClient(ctx: android.content.Context) {
-    val pm = ctx.packageManager
-    val intent = pm.getLaunchIntentForPackage(KEX_CLIENT)
-    if (intent != null) {
-        ctx.startActivity(intent)
-    } else {
-        Toast.makeText(ctx, "NetHunter KeX client not installed — connect any VNC viewer to 127.0.0.1:5901", Toast.LENGTH_LONG).show()
-    }
-}
-
-@Composable
-private fun KLine(line: TermLine) {
-    when (line.kind) {
-        TermKind.COMMAND -> Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-            Text("❯ ", color = KPrompt, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-            Box(Modifier.horizontalScroll(rememberScrollState())) {
-                Text(line.text, color = KCmd, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-            }
-        }
-        TermKind.OUTPUT -> Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            Text(line.text, color = KOut, fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 16.sp)
-        }
-        TermKind.INFO -> Text(line.text, color = Color(0xFF7FA8C9), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-    }
-}
